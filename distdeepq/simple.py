@@ -9,8 +9,8 @@ import baselines.common.tf_util as U
 
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
-from baselines import distdeepq
-from baselines.distdeepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+import distdeepq
+from distdeepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from .static import build_z
 
 

@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import tensorflow as tf
-from baselines import distdeepq
+import distdeepq
 
 
 

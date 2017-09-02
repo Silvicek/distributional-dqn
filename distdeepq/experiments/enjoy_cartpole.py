@@ -1,6 +1,6 @@
 import gym
 
-from baselines import distdeepq
+import distdeepq
 
 
 def main():
