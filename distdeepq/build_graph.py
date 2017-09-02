@@ -90,13 +90,46 @@ def p_to_q(p_values, dist_params):
     return tf.tensordot(p_values, z, [-1, -1])
 
 
-def pick_action(p_values, dist_params):
+def pick_action_argmax(p_values, dist_params):
     q_values = p_to_q(p_values, dist_params)
     deterministic_actions = tf.argmax(q_values, axis=1)
     return deterministic_actions
 
 
-def build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope="distdeepq", reuse=None):
+def pick_action_cvar(p_values, dist_params):
+    alpha = 0.5  # TODO: fix - 1.0 leads to errors
+    z, _ = build_z(**dist_params)
+
+    def adder(s, i, p):
+        s = tf.add(s, p[i])
+        i = tf.add(i, 1)
+        return s, i, p
+
+    def subsum_to_cvar(s, i, p):
+        s_pre = s - p[i - 1]
+        p_rest = alpha - s_pre
+        cvar = (tf.reduce_sum(z[:i - 1] * p[:i - 1]) + z[i - 1] * p_rest) / alpha
+        return cvar
+
+    def inner_select(p):
+        cond = lambda s, i, _: tf.less(s, alpha)
+        i = tf.constant(0)
+        s = tf.constant(0.)
+        s, i, _ = tf.while_loop(cond, adder, [s, i, p])
+        return subsum_to_cvar(s, i, p)
+
+    def outer_select(p):
+        return tf.map_fn(inner_select, p)
+
+    def p_to_cvar(p):
+        return tf.map_fn(outer_select, p)
+
+    cvar = p_to_cvar(p_values)
+    deterministic_actions = tf.argmax(cvar, axis=1)
+    return deterministic_actions
+
+
+def build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope="distdeepq", reuse=None, risk_alpha=1.0):
     """Creates the act function:
 
     Parameters
@@ -134,7 +167,11 @@ def build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope="distdee
         eps = tf.get_variable("eps", (), initializer=tf.constant_initializer(0))
 
         p_values = p_dist_func(observations_ph.get(), num_actions, dist_params['nb_atoms'], scope="q_func")
-        deterministic_actions = pick_action(p_values, dist_params)
+
+        if risk_alpha == 1:
+            deterministic_actions = pick_action_argmax(p_values, dist_params)
+        else:
+            deterministic_actions = pick_action_cvar(p_values, dist_params)
 
         batch_size = tf.shape(observations_ph.get())[0]
         random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
@@ -152,7 +189,7 @@ def build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope="distdee
 
 def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clipping=None, gamma=1.0,
                 double_q=True, scope="distdeepq", reuse=None, param_noise=False, param_noise_filter_func=None,
-                dist_params=None):
+                dist_params=None, risk_alpha=1.):
     """Creates the train function:
 
     Parameters
@@ -210,7 +247,8 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
     if param_noise:
         raise ValueError('parameter noise not supported')
     else:
-        act_f = build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope=scope, reuse=reuse)
+        act_f = build_act(make_obs_ph, p_dist_func, num_actions, dist_params,
+                          risk_alpha=risk_alpha, scope=scope, reuse=reuse)
 
     with tf.variable_scope(scope, reuse=reuse):
         # set up placeholders

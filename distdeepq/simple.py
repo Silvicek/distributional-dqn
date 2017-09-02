@@ -97,7 +97,8 @@ def learn(env,
           num_cpu=16,
           param_noise=False,
           callback=None,
-          dist_params=None
+          dist_params=None,
+          risk_alpha=1.0
           ):
     """Train a distdeepq model.
 
@@ -187,7 +188,8 @@ def learn(env,
         gamma=gamma,
         grad_norm_clipping=10,
         param_noise=param_noise,
-        dist_params=dist_params
+        dist_params=dist_params,
+        risk_alpha=risk_alpha
     )
 
     act_params = {

@@ -30,7 +30,8 @@ def main():
         target_network_update_freq=500,
         batch_size=32,
         gamma=0.95,
-        dist_params={'Vmin': 0, 'Vmax': 25, 'nb_atoms': 51}
+        dist_params={'Vmin': 0, 'Vmax': 25, 'nb_atoms': 51},
+        risk_alpha=1.0
     )
     print("Saving model to cartpole_model.pkl")
     act.save("cartpole_model.pkl")
