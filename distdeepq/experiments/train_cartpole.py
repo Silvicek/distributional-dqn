@@ -4,7 +4,6 @@ import tensorflow as tf
 import distdeepq
 
 
-
 def callback(lcl, glb):
     # stop training if reward exceeds 199
     is_solved = lcl['t'] > 100 and sum(lcl['episode_rewards'][-101:-1]) / 100 >= 199
@@ -18,22 +17,20 @@ def main():
     tf.set_random_seed(1337)
 
     model = distdeepq.models.dist_mlp([64])
-    dist_params = {'Vmin': 0, 'Vmax': 25, 'nb_atoms': 51}
     act = distdeepq.learn(
         env,
         p_dist_func=model,
         lr=3e-4,
         max_timesteps=100000,
-        # max_timesteps=20000,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.02,
-        print_freq=100,
+        print_freq=50,
         callback=callback,
         target_network_update_freq=500,
         batch_size=32,
         gamma=0.95,
-        dist_params=dist_params
+        dist_params={'Vmin': 0, 'Vmax': 25, 'nb_atoms': 51}
     )
     print("Saving model to cartpole_model.pkl")
     act.save("cartpole_model.pkl")

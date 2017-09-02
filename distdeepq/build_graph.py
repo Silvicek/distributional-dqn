@@ -87,7 +87,6 @@ def default_param_noise_filter(var):
 
 def p_to_q(p_values, dist_params):
     z, _ = build_z(**dist_params)
-    print(z, p_values)
     return tf.tensordot(p_values, z, [-1, -1])
 
 
@@ -303,7 +302,7 @@ def build_categorical_alg(p_ph, r_ph, a_next, gamma, batch_dim, done_mask, dist_
 
         big_z = tf.reshape(tf.tile(z, [batch_dim]), [batch_dim, nb_atoms])
         big_r = tf.transpose(tf.reshape(tf.tile(r_ph, [nb_atoms]), [nb_atoms, batch_dim]))
-        # print(big_z, done_mask, tf.matmul(tf.expand_dims(done_mask, 0), big_z))
+
         Tz = tf.clip_by_value(big_r + gamma * tf.einsum('ij,i->ij', big_z, 1.-done_mask), Vmin, Vmax)
 
         big_Tz = tf.reshape(tf.tile(Tz, [1, nb_atoms]), [-1, nb_atoms, nb_atoms])
