@@ -11,11 +11,8 @@ def build_z(Vmin, Vmax, nb_atoms):
     return z, dz
 
 
-
-
-
-
-# TODO: CVaR
+# TODO: CVaR - finish actor (build_act, actor_params)
+# TODO: save more often
 # TODO: Atari
 # TODO: visualize histogram
 
