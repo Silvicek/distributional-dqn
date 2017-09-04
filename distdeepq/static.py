@@ -10,9 +10,3 @@ def build_z(Vmin, Vmax, nb_atoms):
     # print('Z=', z)
     return z, dz
 
-
-# TODO: CVaR
-# TODO: Atari
-# TODO: visualize histogram
-
-

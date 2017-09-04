@@ -87,7 +87,8 @@ def default_param_noise_filter(var):
 
 def p_to_q(p_values, dist_params):
     z, _ = build_z(**dist_params)
-    return tf.tensordot(p_values, z, [-1, -1])
+    print(z, p_values)
+    return tf.tensordot(p_values, z, [[-1], [-1]])
 
 
 def pick_action(p_values, dist_params):
