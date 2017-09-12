@@ -134,8 +134,8 @@ def main():
 
     with U.make_session(4) as sess:  # noqa
         _, env = make_env(args.env)
-        model_parent_path = os.path.join(os.path.split(args.model_dir)[:-1])
-        old_args = json.load(model_parent_path + '/args.json')
+        model_parent_path = distdeepq.parent_path(args.model_dir)
+        old_args = json.load(open(model_parent_path + '/args.json'))
 
         act = distdeepq.build_act(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),

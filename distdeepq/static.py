@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+import os
 
 def build_z(Vmin, Vmax, nb_atoms):
     dz = (Vmax - Vmin) / (nb_atoms - 1)
@@ -11,3 +11,7 @@ def build_z(Vmin, Vmax, nb_atoms):
     return z, dz
 
 
+def parent_path(path):
+    if path.endswith('/'):
+        path = path[:-1]
+    return os.path.join(*os.path.split(path)[:-1])
