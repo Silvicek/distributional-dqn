@@ -1,1 +1,3 @@
 TODO: visualize distribution
+TODO: proper cvar settings
+TODO: speed up: scan, 1-cvar
