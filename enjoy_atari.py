@@ -72,6 +72,7 @@ if __name__ == '__main__':
             num_actions=env.action_space.n,
             dist_params={'Vmin': old_args['vmin'],
                          'Vmax': old_args['vmax'],
-                         'nb_atoms': old_args['nb_atoms']})
+                         'nb_atoms': old_args['nb_atoms']},
+            risk_alpha=1.0)
         U.load_state(os.path.join(args.model_dir, "saved"))
         play(env, act, args.stochastic, args.video)

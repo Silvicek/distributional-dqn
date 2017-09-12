@@ -56,6 +56,7 @@ def parse_args():
     parser.add_argument("--vmin", type=float, default=0., help="lower bound for histogram atoms")
     parser.add_argument("--vmax", type=float, default=10., help="upper bound for histogram atoms")
     parser.add_argument("--nb-atoms", type=int, default=51, help="number of histogram atoms")
+    parser.add_argument("--cvar-alpha", type=float, default=1., help="alpha parameter for CVaR")
     # Checkpointing
     parser.add_argument("--save-dir", type=str, default=None, help="directory in which training state and model should be saved.")
     parser.add_argument("--save-azure-container", type=str, default=None,
@@ -155,7 +156,8 @@ if __name__ == '__main__':
             param_noise=args.param_noise,
             dist_params={'Vmin': args.vmin,
                          'Vmax': args.vmax,
-                         'nb_atoms': args.nb_atoms}
+                         'nb_atoms': args.nb_atoms},
+            risk_alpha=args.cvar_alpha
         )
 
         approximate_num_iters = args.num_steps / 4

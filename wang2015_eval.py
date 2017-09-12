@@ -8,6 +8,53 @@ import baselines.common.tf_util as U
 import distdeepq
 from baselines.common.misc_util import get_wrapper_by_name, SimpleMonitor, boolean_flag, set_global_seeds
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
+import gym
+import distdeepq
+import numpy as np
+import matplotlib.pyplot as plt
+from baselines.common.atari_wrappers_deprecated import wrap_dqn
+
+
+def cvar_from_histogram(alpha, pdf, bins):
+    bins = np.array([(bins[i]+bins[i+1])/2 for i in range(len(bins)-1)])
+
+    threshold = 0.
+    cvar = 0.
+    var = 0.
+    for n, bin in zip(pdf, bins):
+
+        threshold += n
+        if threshold >= alpha:
+            n_rest = alpha - (threshold - n)
+            cvar += n_rest * bin
+            var = bin
+            break
+
+        cvar += n * bin
+
+    return var, cvar / alpha
+
+
+def plot_distribution(samples, alpha, nb_bins):
+    n, bins, patches = plt.hist(samples, nb_bins, normed=1, facecolor='green', alpha=0.75)
+    pdf = n * np.diff(bins)
+    var, cvar = cvar_from_histogram(alpha, pdf, bins)
+
+    y_lim = 1.1*np.max(n)
+
+    plt.vlines([var], 0, y_lim)
+    plt.vlines([cvar], 0, y_lim/3, 'r')
+
+    # plt.xlabel('Smarts')
+    # plt.ylabel('Probability')
+    # plt.title(r'$\mathrm{Histogram\ of\ IQ:}\ \mu=100,\ \sigma=15$')
+    axes = plt.gca()
+    axes.set_ylim([0., 1.1*np.max(n)])
+    plt.grid(True)
+
+    print('Mean={:.1f}, VaR={:.1f}, CVaR={:.1f}'.format(np.mean(samples), var, cvar))
+
+    plt.show()
 
 
 def make_env(game_name):
@@ -22,6 +69,7 @@ def parse_args():
     # Environment
     parser.add_argument("--env", type=str, required=True, help="name of the game")
     parser.add_argument("--model-dir", type=str, default=None, help="load model from this directory. ")
+    parser.add_argument("--nb-episodes", type=int, default=1000, help="statistics over how many episodes?")
     boolean_flag(parser, "stochastic", default=True, help="whether or not to use stochastic actions according to models eps value")
     boolean_flag(parser, "dueling", default=False, help="whether or not to use dueling model")
 
@@ -63,6 +111,23 @@ def wang2015_eval(game_name, act, stochastic):
     return np.mean(episode_rewards)
 
 
+def measure_performance(env, act, stochastic, nb_episodes, alpha, nb_atoms):
+
+    history = np.zeros(nb_episodes)
+
+    for ix in range(nb_episodes):
+        obs, done = env.reset(), False
+        episode_rew = 0
+        while not done:
+            obs, rew, done, _ = env.step(act(obs[None])[0], stochastic=stochastic)
+            episode_rew += rew
+        print("{:4d} Episode reward: {:.3f}".format(ix, episode_rew))
+
+        history[ix] = episode_rew
+
+    plot_distribution(history, alpha=alpha, nb_bins=nb_atoms)
+
+
 def main():
     set_global_seeds(1)
     args = parse_args()
@@ -78,9 +143,12 @@ def main():
             num_actions=env.action_space.n,
             dist_params={'Vmin': old_args['vmin'],
                          'Vmax': old_args['vmax'],
-                         'nb_atoms': old_args['nb_atoms']})
+                         'nb_atoms': old_args['nb_atoms']},
+            risk_alpha=1.0)
         U.load_state(os.path.join(args.model_dir, "saved"))
-        wang2015_eval(args.env, act, stochastic=args.stochastic)
+        # wang2015_eval(args.env, act, stochastic=args.stochastic)
+        measure_performance(args.env, act, args.stochastic, args.nb_episodes,
+                            old_args['cvar_alpha'], old_args['nb_atoms'])
 
 
 if __name__ == '__main__':
