@@ -119,8 +119,10 @@ def measure_performance(env, act, stochastic, nb_episodes, alpha, nb_atoms):
         obs, done = env.reset(), False
         episode_rew = 0
         while not done:
-            obs, rew, done, _ = env.step(act(obs[None])[0], stochastic=stochastic)
-            episode_rew += rew
+            action = act(np.array(obs)[None], stochastic=stochastic)[0]
+
+            obs, reward, done, info = env.step(action)
+            episode_rew += reward
         print("{:4d} Episode reward: {:.3f}".format(ix, episode_rew))
 
         history[ix] = episode_rew
@@ -147,7 +149,7 @@ def main():
             risk_alpha=1.0)
         U.load_state(os.path.join(args.model_dir, "saved"))
         # wang2015_eval(args.env, act, stochastic=args.stochastic)
-        measure_performance(args.env, act, args.stochastic, args.nb_episodes,
+        measure_performance(env, act, args.stochastic, args.nb_episodes,
                             old_args['cvar_alpha'], old_args['nb_atoms'])
 
 
