@@ -27,12 +27,6 @@ from baselines.common.schedules import LinearSchedule, PiecewiseSchedule
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
 from baselines.common.azure_utils import Container
 
-model = distdeepq.models.cnn_to_dist_mlp(
-        convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-        hiddens=[512],)
-
-dueling_model = None
-
 
 def parse_args():
     parser = argparse.ArgumentParser("DQN experiments for Atari games")
@@ -146,9 +140,10 @@ if __name__ == '__main__':
 
     with U.make_session(4) as sess:
         # Create training graph and replay buffer
-        def model_wrapper(img_in, num_actions, scope, **kwargs):
-            actual_model = dueling_model if args.dueling else model
-            return actual_model(img_in, num_actions, scope, layer_norm=args.layer_norm, **kwargs)
+        model = distdeepq.models.cnn_to_dist_mlp(
+            convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+            hiddens=[512])
+
         act, train, update_target, debug = distdeepq.build_train(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
             p_dist_func=model,
@@ -158,7 +153,7 @@ if __name__ == '__main__':
             grad_norm_clipping=10,
             double_q=args.double_q,
             param_noise=args.param_noise,
-            dist_params={'Vmin': 0, 'Vmax': 10, 'nb_atoms': 51}  # TODO: 0-10 is ok?
+            dist_params={'Vmin': 0, 'Vmax': 10, 'nb_atoms': 51}  # TODO: args
         )
 
         approximate_num_iters = args.num_steps / 4
@@ -196,6 +191,9 @@ if __name__ == '__main__':
             num_iters += 1
             num_iters_since_reset += 1
 
+            if num_iters % 100 == 0:
+                print(num_iters)
+
             # Take action and store transition in the replay buffer.
             kwargs = {}
             if not args.param_noise:
@@ -226,7 +224,7 @@ if __name__ == '__main__':
                 obs = env.reset()
                 reset = True
 
-            if (num_iters > max(5 * args.batch_size, args.replay_buffer_size // 20) and
+            if (num_iters > max(5 * args.batch_size, args.replay_buffer_size // 200) and
                     num_iters % args.learning_freq == 0):
                 # Sample a bunch of transitions from replay buffer
                 if args.prioritized:
@@ -252,6 +250,7 @@ if __name__ == '__main__':
 
             # Save the model and training state.
             if num_iters > 0 and (num_iters % args.save_freq == 0 or info["steps"] > args.num_steps):
+                print("MAYBE SAVE")
                 maybe_save_model(savedir, container, {
                     'replay_buffer': replay_buffer,
                     'num_iters': num_iters,

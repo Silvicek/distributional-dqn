@@ -8,13 +8,6 @@ import baselines.common.tf_util as U
 import distdeepq
 from baselines.common.misc_util import get_wrapper_by_name, SimpleMonitor, boolean_flag, set_global_seeds
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
-# from baselines.distdeepq.experiments.atari.model import model, dueling_model
-
-model = distdeepq.models.cnn_to_dist_mlp(
-        convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-        hiddens=[512],)
-
-dueling_model = None
 
 
 def make_env(game_name):
@@ -43,7 +36,8 @@ def wang2015_eval(game_name, act, stochastic):
         env_monitored, eval_env = make_env(game_name)
         eval_env.unwrapped.seed(1)
 
-        get_wrapper_by_name(eval_env, "NoopResetEnv").override_num_noops = num_noops
+        # get_wrapper_by_name(eval_env, "NoopResetEnv").override_num_noops = num_noops
+        # XXX: whats this
 
         eval_episode_steps = 0
         done = True
@@ -72,12 +66,17 @@ def wang2015_eval(game_name, act, stochastic):
 def main():
     set_global_seeds(1)
     args = parse_args()
+    model = distdeepq.models.cnn_to_dist_mlp(
+        convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+        hiddens=[512])
+
     with U.make_session(4) as sess:  # noqa
         _, env = make_env(args.env)
         act = distdeepq.build_act(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
-            p_dist_func=dueling_model if args.dueling else model,
-            num_actions=env.action_space.n)
+            p_dist_func=model,
+            num_actions=env.action_space.n,
+            dist_params={'Vmin': 0, 'Vmax': 10, 'nb_atoms': 51})  # TODO: 0-10 is ok?
 
         U.load_state(os.path.join(args.model_dir, "saved"))
         wang2015_eval(args.env, act, stochastic=args.stochastic)
