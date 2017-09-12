@@ -63,7 +63,7 @@ if __name__ == '__main__':
         args = parse_args()
         env = make_env(args.env)
 
-        model_parent_path = os.path.join(*os.path.split(args.model_dir)[:-1])
+        model_parent_path = distdeepq.parent_path(args.model_dir)
         old_args = json.load(open(model_parent_path + '/args.json'))
 
         act = distdeepq.build_act(
