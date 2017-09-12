@@ -2,7 +2,7 @@ import argparse
 import gym
 import numpy as np
 import os
-
+import json
 import baselines.common.tf_util as U
 
 import distdeepq
@@ -66,18 +66,19 @@ def wang2015_eval(game_name, act, stochastic):
 def main():
     set_global_seeds(1)
     args = parse_args()
-    model = distdeepq.models.cnn_to_dist_mlp(
-        convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-        hiddens=[512])
 
     with U.make_session(4) as sess:  # noqa
         _, env = make_env(args.env)
+        model_parent_path = os.path.join(os.path.split(args.model_dir)[:-1])
+        old_args = json.load(model_parent_path + '/args.json')
+
         act = distdeepq.build_act(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
-            p_dist_func=model,
+            p_dist_func=distdeepq.models.atari_model(),
             num_actions=env.action_space.n,
-            dist_params={'Vmin': 0, 'Vmax': 10, 'nb_atoms': 51})  # TODO: 0-10 is ok?
-
+            dist_params={'Vmin': old_args['vmin'],
+                         'Vmax': old_args['vmax'],
+                         'nb_atoms': old_args['nb_atoms']})
         U.load_state(os.path.join(args.model_dir, "saved"))
         wang2015_eval(args.env, act, stochastic=args.stochastic)
 

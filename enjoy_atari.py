@@ -2,6 +2,7 @@ import argparse
 import gym
 import os
 import numpy as np
+import json
 
 from gym.monitoring import VideoRecorder
 
@@ -61,14 +62,16 @@ if __name__ == '__main__':
     with U.make_session(4) as sess:
         args = parse_args()
         env = make_env(args.env)
-        model = distdeepq.models.cnn_to_dist_mlp(
-                convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-                hiddens=[512])
+
+        model_parent_path = os.path.join(*os.path.split(args.model_dir)[:-1])
+        old_args = json.load(open(model_parent_path + '/args.json'))
 
         act = distdeepq.build_act(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
-            p_dist_func=model,
+            p_dist_func=distdeepq.models.atari_model(),
             num_actions=env.action_space.n,
-            dist_params={'Vmin': 0, 'Vmax': 10, 'nb_atoms': 51})
+            dist_params={'Vmin': old_args['vmin'],
+                         'Vmax': old_args['vmax'],
+                         'nb_atoms': old_args['nb_atoms']})
         U.load_state(os.path.join(args.model_dir, "saved"))
         play(env, act, args.stochastic, args.video)

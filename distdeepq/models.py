@@ -2,6 +2,14 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 
+def atari_model():
+    print('GETTING')
+    model = cnn_to_dist_mlp(
+            convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+            hiddens=[512])
+    return model
+
+
 def _dist_mlp(hiddens, inpt, num_actions, nb_atoms, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
