@@ -2,13 +2,12 @@ import argparse
 import gym
 import numpy as np
 import os
-
+import json
 import baselines.common.tf_util as U
 
-from baselines import distdeepq
+import distdeepq
 from baselines.common.misc_util import get_wrapper_by_name, SimpleMonitor, boolean_flag, set_global_seeds
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
-from baselines.distdeepq.experiments.atari.model import model, dueling_model
 
 
 def make_env(game_name):
@@ -37,7 +36,8 @@ def wang2015_eval(game_name, act, stochastic):
         env_monitored, eval_env = make_env(game_name)
         eval_env.unwrapped.seed(1)
 
-        get_wrapper_by_name(eval_env, "NoopResetEnv").override_num_noops = num_noops
+        # get_wrapper_by_name(eval_env, "NoopResetEnv").override_num_noops = num_noops
+        # XXX: whats this
 
         eval_episode_steps = 0
         done = True
@@ -66,13 +66,19 @@ def wang2015_eval(game_name, act, stochastic):
 def main():
     set_global_seeds(1)
     args = parse_args()
+
     with U.make_session(4) as sess:  # noqa
         _, env = make_env(args.env)
+        model_parent_path = os.path.join(os.path.split(args.model_dir)[:-1])
+        old_args = json.load(model_parent_path + '/args.json')
+
         act = distdeepq.build_act(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
-            p_dist_func=dueling_model if args.dueling else model,
-            num_actions=env.action_space.n)
-
+            p_dist_func=distdeepq.models.atari_model(),
+            num_actions=env.action_space.n,
+            dist_params={'Vmin': old_args['vmin'],
+                         'Vmax': old_args['vmax'],
+                         'nb_atoms': old_args['nb_atoms']})
         U.load_state(os.path.join(args.model_dir, "saved"))
         wang2015_eval(args.env, act, stochastic=args.stochastic)
 

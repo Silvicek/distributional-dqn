@@ -26,7 +26,6 @@ from baselines.common.schedules import LinearSchedule, PiecewiseSchedule
 # copy over LazyFrames
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
 from baselines.common.azure_utils import Container
-from .model import model, dueling_model
 
 
 def parse_args():
@@ -37,7 +36,7 @@ def parse_args():
     # Core DQN parameters
     parser.add_argument("--replay-buffer-size", type=int, default=int(1e6), help="replay buffer size")
     parser.add_argument("--lr", type=float, default=1e-4, help="learning rate for Adam optimizer")
-    parser.add_argument("--num-steps", type=int, default=int(2e8), help="total number of steps to run the environment for")
+    parser.add_argument("--num-steps", type=int, default=int(4e7), help="total number of steps to run the environment for")
     parser.add_argument("--batch-size", type=int, default=32, help="number of transitions to optimize at the same time")
     parser.add_argument("--learning-freq", type=int, default=4, help="number of iterations between every optimization step")
     parser.add_argument("--target-update-freq", type=int, default=40000, help="number of iterations between every target network update")
@@ -53,6 +52,10 @@ def parse_args():
     parser.add_argument("--prioritized-alpha", type=float, default=0.6, help="alpha parameter for prioritized replay buffer")
     parser.add_argument("--prioritized-beta0", type=float, default=0.4, help="initial value of beta parameters for prioritized replay")
     parser.add_argument("--prioritized-eps", type=float, default=1e-6, help="eps parameter for prioritized replay buffer")
+    # Distributional Perspective
+    parser.add_argument("--vmin", type=float, default=0., help="lower bound for histogram atoms")
+    parser.add_argument("--vmax", type=float, default=10., help="upper bound for histogram atoms")
+    parser.add_argument("--nb-atoms", type=int, default=51, help="number of histogram atoms")
     # Checkpointing
     parser.add_argument("--save-dir", type=str, default=None, help="directory in which training state and model should be saved.")
     parser.add_argument("--save-azure-container", type=str, default=None,
@@ -141,18 +144,18 @@ if __name__ == '__main__':
 
     with U.make_session(4) as sess:
         # Create training graph and replay buffer
-        def model_wrapper(img_in, num_actions, scope, **kwargs):
-            actual_model = dueling_model if args.dueling else model
-            return actual_model(img_in, num_actions, scope, layer_norm=args.layer_norm, **kwargs)
         act, train, update_target, debug = distdeepq.build_train(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
-            p_dist_func=model_wrapper,
+            p_dist_func=distdeepq.models.atari_model(),
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=args.lr, epsilon=1e-4),
             gamma=0.99,
             grad_norm_clipping=10,
             double_q=args.double_q,
-            param_noise=args.param_noise
+            param_noise=args.param_noise,
+            dist_params={'Vmin': args.vmin,
+                         'Vmax': args.vmax,
+                         'nb_atoms': args.nb_atoms}
         )
 
         approximate_num_iters = args.num_steps / 4
@@ -220,7 +223,7 @@ if __name__ == '__main__':
                 obs = env.reset()
                 reset = True
 
-            if (num_iters > max(5 * args.batch_size, args.replay_buffer_size // 20) and
+            if (num_iters > max(5 * args.batch_size, args.replay_buffer_size // 200) and
                     num_iters % args.learning_freq == 0):
                 # Sample a bunch of transitions from replay buffer
                 if args.prioritized:
