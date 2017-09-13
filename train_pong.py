@@ -9,7 +9,7 @@ def main():
     env = ScaledFloatFrame(wrap_dqn(env))
     model = distdeepq.models.cnn_to_dist_mlp(
         convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-        hiddens=[512],
+        hiddens=[256],
         dueling=False
     )
     act = distdeepq.learn(

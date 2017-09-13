@@ -247,32 +247,6 @@ def learn(env,
             reset = False
             new_obs, rew, done, _ = env.step(action)
 
-            # ========= DEBUG ==========
-            # if t % 10000 == 0:
-            #     # print(obs)
-            #     # print('ThTz:', sess.run(debug['ThTz']))
-            #     fake_obs = np.array([0,0,0,0])
-            #
-            #     filler_dict ={"distdeepq_1/obs_t:0": [fake_obs],
-            #                   "distdeepq_1/reward:0": [1],
-            #                   "distdeepq_1/obs_tp1:0": [fake_obs],
-            #                   "distdeepq_1/action:0": [0],
-            #                   "distdeepq_1/done:0": [0]}
-            #
-            #     print("p:", sess.run(debug['p'], filler_dict))
-            #
-            #     thtz = sess.run(debug['ThTz'], filler_dict)
-            #     err = sess.run(debug['cross_entropy'], filler_dict)
-            #     print('cross_vector:', np.mean(err), err)
-            #
-            #     other = sess.run(debug['p_best'], filler_dict)
-            #     print('other:', other)
-            #     print('ThTz:', thtz)
-            #     print('----------')
-            #     import sys
-            #     sys.exit()
-            # ==========================
-
             # Store transition in the replay buffer.
             replay_buffer.add(obs, action, rew, new_obs, float(done))
             obs = new_obs
