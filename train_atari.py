@@ -35,11 +35,11 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="which seed to use")
     # Core DQN parameters
     parser.add_argument("--replay-buffer-size", type=int, default=int(1e6), help="replay buffer size")
-    parser.add_argument("--lr", type=float, default=1e-4, help="learning rate for Adam optimizer")
+    parser.add_argument("--lr", type=float, default=25e-5, help="learning rate for Adam optimizer")
     parser.add_argument("--num-steps", type=int, default=int(4e7), help="total number of steps to run the environment for")
     parser.add_argument("--batch-size", type=int, default=32, help="number of transitions to optimize at the same time")
     parser.add_argument("--learning-freq", type=int, default=4, help="number of iterations between every optimization step")
-    parser.add_argument("--target-update-freq", type=int, default=40000, help="number of iterations between every target network update")
+    parser.add_argument("--target-update-freq", type=int, default=10000, help="number of iterations between every target network update")
     parser.add_argument("--param-noise-update-freq", type=int, default=50, help="number of iterations between every re-scaling of the parameter noise")
     parser.add_argument("--param-noise-reset-freq", type=int, default=10000, help="maximum number of steps to take per episode before re-perturbing the exploration policy")
     # Bells and whistles
@@ -53,7 +53,7 @@ def parse_args():
     parser.add_argument("--prioritized-beta0", type=float, default=0.4, help="initial value of beta parameters for prioritized replay")
     parser.add_argument("--prioritized-eps", type=float, default=1e-6, help="eps parameter for prioritized replay buffer")
     # Distributional Perspective
-    parser.add_argument("--vmin", type=float, default=0., help="lower bound for histogram atoms")
+    parser.add_argument("--vmin", type=float, default=-10., help="lower bound for histogram atoms")
     parser.add_argument("--vmax", type=float, default=10., help="upper bound for histogram atoms")
     parser.add_argument("--nb-atoms", type=int, default=51, help="number of histogram atoms")
     parser.add_argument("--cvar-alpha", type=float, default=1., help="alpha parameter for CVaR")
@@ -149,7 +149,7 @@ if __name__ == '__main__':
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
             p_dist_func=distdeepq.models.atari_model(),
             num_actions=env.action_space.n,
-            optimizer=tf.train.AdamOptimizer(learning_rate=args.lr, epsilon=1e-4),
+            optimizer=tf.train.AdamOptimizer(learning_rate=args.lr, epsilon=0.01/args.batch_size),
             gamma=0.99,
             grad_norm_clipping=10,
             double_q=args.double_q,

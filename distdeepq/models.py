@@ -3,7 +3,6 @@ import tensorflow.contrib.layers as layers
 
 
 def atari_model():
-    print('GETTING')
     model = cnn_to_dist_mlp(
             convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
             hiddens=[512])
