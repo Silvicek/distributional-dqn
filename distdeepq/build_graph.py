@@ -97,35 +97,54 @@ def pick_action_argmax(p_values, dist_params):
     return deterministic_actions
 
 
-def pick_action_cvar(p_values, dist_params):
-    alpha = 0.5  # TODO: fix - 1.0 leads to errors
+def pick_action_cvar(p_values, dist_params, alpha, num_actions):
+    """ Select actions by maximizing CVaR of the current distribution.
+        :param p_values: shape=(?, a, atoms)
+        :returns shape=(?,)
+    """
+
     z, _ = build_z(**dist_params)
+    nb_atoms = dist_params['nb_atoms']
 
     def adder(s, i, p):
+        """ Increment index, increment subsum. """
         s = tf.add(s, p[i])
         i = tf.add(i, 1)
         return s, i, p
 
     def subsum_to_cvar(s, i, p):
+        """
+        correctly compute the last atom and finish cvar
+        :param s: scalar
+        :param i: scalar index
+        :param p: [bins]
+        :return: scalar
+        """
         s_pre = s - p[i - 1]
         p_rest = alpha - s_pre
         cvar = (tf.reduce_sum(z[:i - 1] * p[:i - 1]) + z[i - 1] * p_rest) / alpha
         return cvar
 
-    def inner_select(p):
+    def row_cvar(p):
+        # [bins]
         cond = lambda s, i, _: tf.less(s, alpha)
         i = tf.constant(0)
         s = tf.constant(0.)
         s, i, _ = tf.while_loop(cond, adder, [s, i, p])
         return subsum_to_cvar(s, i, p)
 
-    def outer_select(p):
-        return tf.map_fn(inner_select, p)
+    # calculate on reshaped to eliminate inner loop
+    p_values = tf.reshape(p_values, shape=[-1, nb_atoms], name='p_reshaped')
 
-    def p_to_cvar(p):
-        return tf.map_fn(outer_select, p)
+    # apply to each row
+    cvar = tf.map_fn(row_cvar,
+                     p_values,
+                     back_prop=False,
+                     )
+    # reshape back
+    cvar = tf.reshape(cvar, shape=[-1, num_actions])
 
-    cvar = p_to_cvar(p_values)
+    # get action maximizing cvar
     deterministic_actions = tf.argmax(cvar, axis=1)
     return deterministic_actions
 
@@ -172,7 +191,7 @@ def build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope="distdee
         if risk_alpha == 1:
             deterministic_actions = pick_action_argmax(p_values, dist_params)
         else:
-            deterministic_actions = pick_action_cvar(p_values, dist_params)
+            deterministic_actions = pick_action_cvar(p_values, dist_params, risk_alpha, num_actions)
 
         batch_size = tf.shape(observations_ph.get())[0]
         random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
@@ -329,7 +348,7 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
 
 def build_categorical_alg(p_ph, r_ph, a_next, gamma, batch_dim, done_mask, dist_params):
     """
-    Builds the vectorized cathegorical algorithm following equation (7) of 
+    Builds the vectorized categorical algorithm following equation (7) of 
     'A Distributional Perspective on Reinforcement Learning' - https://arxiv.org/abs/1707.06887
     """
     z, dz = build_z(**dist_params)
