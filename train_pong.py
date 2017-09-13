@@ -26,7 +26,8 @@ def main():
         target_network_update_freq=1000,
         gamma=0.99,
         prioritized_replay=False,
-        dist_params={'Vmin': -10, 'Vmax': 10, 'nb_atoms': 51}
+        dist_params={'Vmin': -10, 'Vmax': 10, 'nb_atoms': 51},
+        risk_alpha=0.05
     )
     act.save("pong_model.pkl")
     env.close()
