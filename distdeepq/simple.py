@@ -75,6 +75,14 @@ def load(path, num_cpu=16):
     return ActWrapper.load(path, num_cpu=num_cpu)
 
 
+def make_session(num_cpu):
+    tf_config = tf.ConfigProto(
+        inter_op_parallelism_threads=num_cpu,
+        intra_op_parallelism_threads=num_cpu)
+    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.25
+    return tf.Session(config=tf_config)
+
+
 def learn(env,
           p_dist_func,
           lr=5e-4,
@@ -168,7 +176,7 @@ def learn(env,
     """
     # Create all the functions necessary to train the model
 
-    sess = U.make_session(num_cpu=num_cpu)
+    sess = make_session(num_cpu=num_cpu)
     sess.__enter__()
 
     def make_obs_ph(name):
