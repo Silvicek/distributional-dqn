@@ -82,7 +82,9 @@ def maybe_save_model(savedir, container, state):
     U.save_state(os.path.join(savedir, model_dir, "saved"))
     if container is not None:
         container.put(os.path.join(savedir, model_dir), model_dir)
-    relatively_safe_pickle_dump(state, os.path.join(savedir, 'training_state.pkl.zip'), compression=True)
+
+    # takes too much memory
+    # relatively_safe_pickle_dump(state, os.path.join(savedir, 'training_state.pkl.zip'), compression=True)
     if container is not None:
         container.put(os.path.join(savedir, 'training_state.pkl.zip'), 'training_state.pkl.zip')
     relatively_safe_pickle_dump(state["monitor_state"], os.path.join(savedir, 'monitor_state.pkl'))
@@ -143,7 +145,7 @@ if __name__ == '__main__':
         with open(os.path.join(savedir, 'args.json'), 'w') as f:
             json.dump(vars(args), f)
 
-    with U.make_session(4) as sess:
+    with distdeepq.make_session(4) as sess:
         # Create training graph and replay buffer
         act, train, update_target, debug = distdeepq.build_train(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
