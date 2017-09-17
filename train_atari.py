@@ -83,8 +83,8 @@ def maybe_save_model(savedir, container, state):
     if container is not None:
         container.put(os.path.join(savedir, model_dir), model_dir)
 
-    # takes too much memory
-    # relatively_safe_pickle_dump(state, os.path.join(savedir, 'training_state.pkl.zip'), compression=True)
+    # requires 32gb of memory for this to work
+    relatively_safe_pickle_dump(state, os.path.join(savedir, 'training_state.pkl.zip'), compression=True)
     if container is not None:
         container.put(os.path.join(savedir, 'training_state.pkl.zip'), 'training_state.pkl.zip')
     relatively_safe_pickle_dump(state["monitor_state"], os.path.join(savedir, 'monitor_state.pkl'))
@@ -192,7 +192,7 @@ if __name__ == '__main__':
         num_iters_since_reset = 0
         reset = True
 
-        # Main trianing loop
+        # Main training loop
         while True:
             num_iters += 1
             num_iters_since_reset += 1
