@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument("--video", type=str, default=None, help="Path to mp4 file where the video of first episode will be recorded.")
     boolean_flag(parser, "stochastic", default=True, help="whether or not to use stochastic actions according to models eps value")
     boolean_flag(parser, "dueling", default=False, help="whether or not to use dueling model")
+    boolean_flag(parser, "visual", default=False, help="whether or not to show the distribution output")
 
     return parser.parse_args()
 
@@ -41,11 +42,16 @@ def play(env, act, stochastic, video_path):
     video_recorder = VideoRecorder(
         env, video_path, enabled=video_path is not None)
     obs = env.reset()
+    if args.visual:
+        plot_machine = distdeepq.PlotMachine(dist_params, env.action_space.n)
     while True:
         env.unwrapped.render()
         video_recorder.capture_frame()
         action = act(np.array(obs)[None], stochastic=stochastic)[0]
         obs, rew, done, info = env.step(action)
+        if args.visual:
+            plot_machine.plot_distribution(np.array(obs)[None])
+
         if done:
             obs = env.reset()
         if len(info["rewards"]) > num_episodes:
@@ -66,12 +72,13 @@ if __name__ == '__main__':
         model_parent_path = distdeepq.parent_path(args.model_dir)
         old_args = json.load(open(model_parent_path + '/args.json'))
 
+        dist_params = {'Vmin': old_args['vmin'],
+                       'Vmax': old_args['vmax'],
+                       'nb_atoms': old_args['nb_atoms']}
         act = distdeepq.build_act(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
             p_dist_func=distdeepq.models.atari_model(),
             num_actions=env.action_space.n,
-            dist_params={'Vmin': old_args['vmin'],
-                         'Vmax': old_args['vmax'],
-                         'nb_atoms': old_args['nb_atoms']})
+            dist_params=dist_params)
         U.load_state(os.path.join(args.model_dir, "saved"))
         play(env, act, args.stochastic, args.video)
