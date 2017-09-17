@@ -76,7 +76,7 @@ def _cnn_to_dist_mlp(convs, hiddens, dueling, inpt, num_actions, nb_atoms, scope
             # q_out = state_score + action_scores_centered
         else:
             out = tf.reshape(action_scores, shape=[-1, num_actions, nb_atoms])
-            out = tf.nn.softmax(out, dim=-1)
+            out = tf.nn.softmax(out, dim=-1, name='cnn_softmax')
         return out
 
 

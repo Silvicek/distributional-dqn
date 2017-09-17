@@ -55,6 +55,9 @@ class ActWrapper(object):
         with open(path, "wb") as f:
             dill.dump((model_data, self._act_params), f)
 
+    def get_dist_params(self):
+        return self._act_params['dist_params']
+
 
 def load(path, num_cpu=16):
     """Load act function that was returned by learn function.
