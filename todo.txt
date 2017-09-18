@@ -1,4 +1,1 @@
 TODO: visualize distribution
-TODO: proper cvar settings
-TODO: speed up: scan
-TODO: measure cvar during testing

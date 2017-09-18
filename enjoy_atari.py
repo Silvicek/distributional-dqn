@@ -43,7 +43,7 @@ def play(env, act, stochastic, video_path):
         env, video_path, enabled=video_path is not None)
     obs = env.reset()
     if args.visual:
-        plot_machine = distdeepq.PlotMachine(dist_params, env.action_space.n)
+        plot_machine = distdeepq.plots.PlotMachine(dist_params, env.action_space.n)
     while True:
         env.unwrapped.render()
         video_recorder.capture_frame()

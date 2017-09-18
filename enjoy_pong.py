@@ -11,7 +11,7 @@ def main():
     act = distdeepq.load("pong_model.pkl")
     print(act)
 
-    plot_machine = distdeepq.PlotMachine(act.get_dist_params(), env.action_space.n)
+    plot_machine = distdeepq.plots.PlotMachine(act.get_dist_params(), env.action_space.n)
 
     while True:
         obs, done = env.reset(), False

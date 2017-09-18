@@ -23,52 +23,11 @@ def parse_args():
 
     return parser.parse_args()
 
+
 def make_env(game_name):
     env = gym.make(game_name + "NoFrameskip-v4")
     env = wrap_dqn(env)
     return env
-
-
-def cvar_from_histogram(alpha, pdf, bins):
-    bins = np.array([(bins[i]+bins[i+1])/2 for i in range(len(bins)-1)])
-
-    threshold = 0.
-    cvar = 0.
-    var = 0.
-    for n, bin in zip(pdf, bins):
-
-        threshold += n
-        if threshold >= alpha:
-            n_rest = alpha - (threshold - n)
-            cvar += n_rest * bin
-            var = bin
-            break
-
-        cvar += n * bin
-
-    return var, cvar / alpha
-
-
-def plot_distribution(samples, alpha, nb_bins):
-    n, bins, patches = plt.hist(samples, nb_bins, normed=1, facecolor='green', alpha=0.75)
-    pdf = n * np.diff(bins)
-    var, cvar = cvar_from_histogram(alpha, pdf, bins)
-
-    y_lim = 1.1*np.max(n)
-
-    plt.vlines([var], 0, y_lim)
-    plt.vlines([cvar], 0, y_lim/3, 'r')
-
-    # plt.xlabel('Smarts')
-    # plt.ylabel('Probability')
-    # plt.title(r'$\mathrm{Histogram\ of\ IQ:}\ \mu=100,\ \sigma=15$')
-    axes = plt.gca()
-    axes.set_ylim([0., 1.1*np.max(n)])
-    plt.grid(True)
-
-    print('Mean={:.1f}, VaR={:.1f}, CVaR={:.1f}'.format(np.mean(samples), var, cvar))
-
-    plt.show()
 
 
 def main():

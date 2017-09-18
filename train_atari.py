@@ -271,6 +271,12 @@ if __name__ == '__main__':
                 logger.record_tabular("iters", num_iters)
                 logger.record_tabular("episodes", len(info["rewards"]))
                 logger.record_tabular("reward (100 epi mean)", np.mean(info["rewards"][-100:]))
+                logger.record_tabular("CVaR_{:.2f}".format(args.cvar_alpha),
+                                      "{:d}".format(
+                                      distdeepq.plots.cvar_from_samples(info["rewards"][-100:],
+                                                                        args.cvar_alpha,
+                                                                        args.nb_atoms)[-1]
+                                      ))
                 logger.record_tabular("exploration", exploration.value(num_iters))
                 if args.prioritized:
                     logger.record_tabular("max priority", replay_buffer._max_priority)
