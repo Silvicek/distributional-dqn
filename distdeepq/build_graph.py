@@ -340,7 +340,7 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
 
         q_values = U.function([obs_t_input], q_t)
 
-        return act_f, train, update_target, {**debug, 'q_values': q_values,
+        return act_f, train, update_target, {'q_values': q_values,
                                              'p': p_tp1,
                                              'cross_entropy': cross_entropy,
                                              'ThTz': ThTz}
