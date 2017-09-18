@@ -8,7 +8,7 @@ class PlotMachine:
 
     def __init__(self, dist_params, nb_actions):
 
-        self.z, self.dz = build_z(**dist_params, numpy=True)
+        self.z, self.dz = build_z(numpy=True, **dist_params)
 
         plt.ion()
 
