@@ -6,7 +6,7 @@ import tensorflow as tf
 
 class PlotMachine:
 
-    def __init__(self, dist_params, nb_actions):
+    def __init__(self, dist_params, nb_actions, action_set=None):
 
         self.z, self.dz = build_z(numpy=True, **dist_params)
 
@@ -15,6 +15,9 @@ class PlotMachine:
         self.fig, self.ax = plt.subplots()
 
         self.bars = [self.ax.bar(self.z, np.ones_like(self.z)*0.25, self.dz * 0.9) for _ in range(nb_actions)]
+
+        if action_set is not None:
+            plt.legend(action_set, loc='upper left')
 
         self.sess = tf.get_default_session()
         self.p_out = tf.get_default_graph().get_tensor_by_name("distdeepq/q_func/cnn_softmax:0")
