@@ -25,12 +25,12 @@ def main():
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.02,
-        print_freq=50,
+        print_freq=10,
         callback=callback,
         target_network_update_freq=500,
         batch_size=32,
         gamma=0.95,
-        dist_params={'Vmin': 0, 'Vmax': 25, 'nb_atoms': 51}
+        dist_params={'Vmin': 0, 'Vmax': 25, 'nb_atoms': 11}
     )
     print("Saving model to cartpole_model.pkl")
     act.save("cartpole_model.pkl")

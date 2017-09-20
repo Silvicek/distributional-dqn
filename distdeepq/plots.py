@@ -20,7 +20,7 @@ class PlotMachine:
             plt.legend(action_set, loc='upper left')
 
         self.sess = tf.get_default_session()
-        self.p_out = tf.get_default_graph().get_tensor_by_name("distdeepq/q_func/cnn_softmax:0")
+        self.p_out = tf.get_default_graph().get_tensor_by_name("distdeepq/q_func/softmax:0")
 
     def make_pdf(self, obs):
         return self.sess.run(self.p_out, {"distdeepq/observation:0": obs})[0]
