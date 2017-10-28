@@ -65,14 +65,6 @@ def parse_args():
     boolean_flag(parser, "load-on-start", default=True, help="if true and model was previously saved then training will be resumed")
     return parser.parse_args()
 
-
-def make_env(game_name):
-    env = gym.make(game_name + "NoFrameskip-v4")
-    monitored_env = SimpleMonitor(env)  # puts rewards and number of steps in info, before environment is wrapped
-    env = wrap_dqn(monitored_env)  # applies a bunch of modification to simplify the observation space (downsample, make b/w)
-    return env, monitored_env
-
-
 def maybe_save_model(savedir, container, state):
     """This function checkpoints the model and state of the training algorithm."""
     if savedir is None:
@@ -133,7 +125,7 @@ if __name__ == '__main__':
     else:
         container = None
     # Create and seed the env.
-    env, monitored_env = make_env(args.env)
+    env, monitored_env = distdeepq.make_env(args.env)
     if args.seed > 0:
         set_global_seeds(args.seed)
         env.unwrapped.seed(args.seed)

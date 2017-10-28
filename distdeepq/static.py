@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
+import gym
 
 
 def build_z(Vmin, Vmax, nb_atoms, numpy=False):
@@ -18,6 +19,7 @@ def parent_path(path):
         path = path[:-1]
     return os.path.join(*os.path.split(path)[:-1])
 
+
 atari_actions = ['noop', 'fire', 'up', 'right', 'left',
                  'down', 'up-right', 'up-left', 'down-right', 'down-left',
                  'up-fire', 'right-fire', 'left-fire', 'down-fire', 'up-right-fire',
@@ -26,7 +28,6 @@ atari_actions = ['noop', 'fire', 'up', 'right', 'left',
 
 def actions_from_env(env):
     """ Propagate through all wrappers to get action indices. """
-    import gym
     while True:
         if isinstance(env, gym.Wrapper):
             env = env.env
@@ -38,3 +39,23 @@ def actions_from_env(env):
             return [atari_actions[i] for i in actions]
 
 
+class ActionRandomizer(gym.Wrapper):
+
+    def __init__(self, env=None, random_p=0.1):
+        super(ActionRandomizer, self).__init__(env)
+        self.random_p = random_p
+
+    def _step(self, action):
+        if np.random.rand() < self.random_p:
+            action = np.random.randint(self.action_space.n)
+        return self.env.step(action)
+
+
+def make_env(game_name):
+    from baselines.common.atari_wrappers_deprecated import wrap_dqn
+    from baselines.common.misc_util import SimpleMonitor
+    env = gym.make(game_name + "NoFrameskip-v4")
+    env = SimpleMonitor(env)
+    env = wrap_dqn(env)
+    env = ActionRandomizer(env)
+    return env

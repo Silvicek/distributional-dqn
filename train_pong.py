@@ -6,7 +6,7 @@ from baselines.common.atari_wrappers_deprecated import wrap_dqn, ScaledFloatFram
 
 def main():
     env = gym.make("PongNoFrameskip-v4")
-    env = ScaledFloatFrame(wrap_dqn(env))
+    env = distdeepq.ActionRandomizer(ScaledFloatFrame(wrap_dqn(env)))
     model = distdeepq.models.cnn_to_dist_mlp(
         convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
         hiddens=[256],

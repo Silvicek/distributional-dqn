@@ -57,13 +57,6 @@ def plot_distribution(samples, alpha, nb_bins):
     plt.show()
 
 
-def make_env(game_name):
-    env = gym.make(game_name + "NoFrameskip-v4")
-    env_monitored = SimpleMonitor(env)
-    env = wrap_dqn(env_monitored)
-    return env_monitored, env
-
-
 def parse_args():
     parser = argparse.ArgumentParser("Evaluate an already learned DQN model.")
     # Environment
@@ -81,7 +74,7 @@ def wang2015_eval(game_name, act, stochastic):
     episode_rewards = []
 
     for num_noops in range(1, 31):
-        env_monitored, eval_env = make_env(game_name)
+        env_monitored, eval_env = distdeepq.make_env(game_name)
         eval_env.unwrapped.seed(1)
 
         # get_wrapper_by_name(eval_env, "NoopResetEnv").override_num_noops = num_noops
@@ -135,7 +128,7 @@ def main():
     args = parse_args()
 
     with U.make_session(4) as sess:  # noqa
-        _, env = make_env(args.env)
+        _, env = distdeepq.make_env(args.env)
         model_parent_path = distdeepq.parent_path(args.model_dir)
         old_args = json.load(open(model_parent_path + '/args.json'))
 

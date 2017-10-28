@@ -28,16 +28,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def make_env(game_name):
-    env = gym.make(game_name + "NoFrameskip-v4")
-    env = wrap_dqn(env)
-    return env
-
-
 def main():
     with U.make_session(4) as sess:
         args = parse_args()
-        env = make_env(args.env)
+        env = distdeepq.make_env(args.env)
 
         model_parent_path = distdeepq.parent_path(args.model_dir)
         old_args = json.load(open(model_parent_path + '/args.json'))

@@ -9,11 +9,7 @@ from gym.monitoring import VideoRecorder
 import baselines.common.tf_util as U
 
 import distdeepq
-from baselines.common.misc_util import (
-    boolean_flag,
-    SimpleMonitor,
-)
-from baselines.common.atari_wrappers_deprecated import wrap_dqn
+from baselines.common.misc_util import boolean_flag
 
 
 def parse_args():
@@ -27,13 +23,6 @@ def parse_args():
     boolean_flag(parser, "visual", default=False, help="whether or not to show the distribution output")
 
     return parser.parse_args()
-
-
-def make_env(game_name):
-    env = gym.make(game_name + "NoFrameskip-v4")
-    env = SimpleMonitor(env)
-    env = wrap_dqn(env)
-    return env
 
 
 def play(env, act, stochastic, video_path):
@@ -68,7 +57,7 @@ def play(env, act, stochastic, video_path):
 if __name__ == '__main__':
     with U.make_session(4) as sess:
         args = parse_args()
-        env = make_env(args.env)
+        env = distdeepq.make_env(args.env)
 
         model_parent_path = distdeepq.parent_path(args.model_dir)
         old_args = json.load(open(model_parent_path + '/args.json'))
