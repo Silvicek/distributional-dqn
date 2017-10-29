@@ -258,7 +258,7 @@ def learn(env,
                 kwargs['update_param_noise_scale'] = True
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             reset = False
-            new_obs, rew, done, _ = env.step(action)
+            new_obs, rew, done, info = env.step(action)
 
             # Store transition in the replay buffer.
             replay_buffer.add(obs, action, rew, new_obs, float(done))

@@ -39,23 +39,28 @@ def actions_from_env(env):
             return [atari_actions[i] for i in actions]
 
 
-class ActionRandomizer(gym.Wrapper):
+class ActionRandomizer(gym.ActionWrapper):
 
     def __init__(self, env=None, random_p=0.1):
         super(ActionRandomizer, self).__init__(env)
         self.random_p = random_p
 
-    def _step(self, action):
+    # def _step(self, action):
+    #     if np.random.rand() < self.random_p:
+    #         action = np.random.randint(self.action_space.n)
+    #     return self.env.step(action)
+
+    def _action(self, action):
         if np.random.rand() < self.random_p:
             action = np.random.randint(self.action_space.n)
-        return self.env.step(action)
+        return action
 
 
 def make_env(game_name):
     from baselines.common.atari_wrappers_deprecated import wrap_dqn
     from baselines.common.misc_util import SimpleMonitor
     env = gym.make(game_name + "NoFrameskip-v4")
-    env = SimpleMonitor(env)
-    env = wrap_dqn(env)
+    monitored_env = SimpleMonitor(env)
+    env = wrap_dqn(monitored_env)
     env = ActionRandomizer(env)
-    return env
+    return env, monitored_env
