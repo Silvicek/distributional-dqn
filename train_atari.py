@@ -8,24 +8,25 @@ import time
 import json
 
 import baselines.common.tf_util as U
-
 from baselines import logger
-import distdeepq
-from distdeepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from baselines import bench
 from baselines.common.misc_util import (
     boolean_flag,
     pickle_load,
     pretty_eta,
     relatively_safe_pickle_dump,
     set_global_seeds,
-    RunningAvg,
-    SimpleMonitor
+    RunningAvg # ,
+    # SimpleMonitor
 )
 from baselines.common.schedules import LinearSchedule, PiecewiseSchedule
 # when updating this to non-deperecated ones, it is important to
 # copy over LazyFrames
-from baselines.common.atari_wrappers_deprecated import wrap_dqn
+from baselines.common.atari_wrappers import wrap_deepmind
 from baselines.common.azure_utils import Container
+
+import distdeepq
+from distdeepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 
 
 def parse_args():
@@ -67,8 +68,8 @@ def parse_args():
 
 def make_env(game_name):
     env = gym.make(game_name + "NoFrameskip-v4")
-    monitored_env = SimpleMonitor(env)  # puts rewards and number of steps in info, before environment is wrapped
-    env = wrap_dqn(monitored_env)  # applies a bunch of modification to simplify the observation space (downsample, make b/w)
+    monitored_env = bench.Monitor(env, None)  # puts rewards and number of steps in info, before environment is wrapped
+    env = wrap_deepmind(monitored_env)  # applies a bunch of modification to simplify the observation space (downsample, make b/w)
     return env, monitored_env
 
 
