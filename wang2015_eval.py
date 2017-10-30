@@ -7,13 +7,13 @@ import baselines.common.tf_util as U
 
 import distdeepq
 from baselines.common.misc_util import get_wrapper_by_name, SimpleMonitor, boolean_flag, set_global_seeds
-from baselines.common.atari_wrappers_deprecated import wrap_dqn
+from baselines.common.atari_wrappers import wrap_deepmind
 
 
 def make_env(game_name):
     env = gym.make(game_name + "NoFrameskip-v4")
     env_monitored = SimpleMonitor(env)
-    env = wrap_dqn(env_monitored)
+    env = wrap_deepmind(env_monitored)
     return env_monitored, env
 
 
