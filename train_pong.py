@@ -1,12 +1,9 @@
-import gym
-
 import distdeepq
-from baselines.common.atari_wrappers_deprecated import wrap_dqn, ScaledFloatFrame
 
 
 def main():
-    env = gym.make("PongNoFrameskip-v4")
-    env = ScaledFloatFrame(wrap_dqn(env))
+    env, _ = distdeepq.make_env("Pong")
+
     model = distdeepq.models.cnn_to_dist_mlp(
         convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
         hiddens=[256],
@@ -16,8 +13,8 @@ def main():
         env,
         p_dist_func=model,
         lr=1e-4,
-        max_timesteps=2000000,
-        # max_timesteps=100000,
+        # max_timesteps=2000000,
+        max_timesteps=100000,
         buffer_size=10000,
         exploration_fraction=0.1,
         exploration_final_eps=0.01,
