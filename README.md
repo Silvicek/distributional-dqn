@@ -1,7 +1,12 @@
 # Distributional DQN
 Implementation of 'A Distributional Perspective on Reinforcement Learning' based on OpenAi DQN baseline
 
-Requires the installation of https://github.com/openai/baselines
+
+### Installation
+Install the OpenAi fork https://github.com/Silvicek/baselines (parent changes a lot, compatibility isn't guaranteed)
+Then install requirements
+
+    pip3 install -r requirements.txt
 
 ### Usage:
 For simple benchmarking:
@@ -19,4 +24,6 @@ after learning, you can visualize the distributions by running
 
 -----------------
 
-Some features not supported (prioritized replay, double q-learning, dueling)
+This implementation has been successfully tested on: Pong, Qbert, Seaquest
+
+Some baseline features not supported (prioritized replay, double q-learning, dueling)
