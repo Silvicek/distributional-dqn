@@ -1,7 +1,4 @@
-import gym
-
 import distdeepq
-from baselines.common.atari_wrappers_deprecated import wrap_dqn, ScaledFloatFrame
 
 
 def main():
