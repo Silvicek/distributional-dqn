@@ -1,6 +1,7 @@
 # Distributional DQN
 Implementation of 'A Distributional Perspective on Reinforcement Learning' based on OpenAi DQN baseline
 
+![](dist-dqn.gif)
 
 ### Installation
 Install the OpenAi fork https://github.com/Silvicek/baselines (parent changes a lot, compatibility isn't guaranteed)
