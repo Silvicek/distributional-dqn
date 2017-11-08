@@ -67,7 +67,6 @@ The functions in this file can are used to create the following functions:
 """
 import tensorflow as tf
 import baselines.common.tf_util as U
-from .static import build_z
 
 
 def default_param_noise_filter(var):
@@ -85,14 +84,12 @@ def default_param_noise_filter(var):
     return False
 
 
-def p_to_q(p_values, dist_params):
-    z, _ = build_z(**dist_params)
-    print(z, p_values)
-    return tf.tensordot(p_values, z, [[-1], [-1]])
+def quant_to_q(p_values):
+    return tf.reduce_mean(p_values, axis=-1)
 
 
-def pick_action(p_values, dist_params):
-    q_values = p_to_q(p_values, dist_params)
+def pick_action(p_values):
+    q_values = quant_to_q(p_values)
     deterministic_actions = tf.argmax(q_values, axis=1)
     return deterministic_actions
 
@@ -135,7 +132,7 @@ def build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope="distdee
         eps = tf.get_variable("eps", (), initializer=tf.constant_initializer(0))
 
         p_values = p_dist_func(observations_ph.get(), num_actions, dist_params['nb_atoms'], scope="q_func")
-        deterministic_actions = pick_action(p_values, dist_params)
+        deterministic_actions = pick_action(p_values)
 
         batch_size = tf.shape(observations_ph.get())[0]
         random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
@@ -151,8 +148,8 @@ def build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope="distdee
         return act
 
 
-def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clipping=None, gamma=1.0,
-                double_q=True, scope="distdeepq", reuse=None, param_noise=False, param_noise_filter_func=None,
+def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipping=None, gamma=1.0,
+                double_q=False, scope="distdeepq", reuse=None, param_noise=False, param_noise_filter_func=None,
                 dist_params=None):
     """Creates the train function:
 
@@ -160,7 +157,7 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
     ----------
     make_obs_ph: str -> tf.placeholder or TfInput
         a function that takes a name and creates a placeholder of input with that name
-    p_dist_func: (tf.Variable, int, str, bool) -> tf.Variable
+    quant_func: (tf.Variable, int, str, bool) -> tf.Variable
         the model that takes the following inputs:
             observation_in: object
                 the output of observation placeholder
@@ -211,7 +208,7 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
     if param_noise:
         raise ValueError('parameter noise not supported')
     else:
-        act_f = build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope=scope, reuse=reuse)
+        act_f = build_act(make_obs_ph, quant_func, num_actions, dist_params, scope=scope, reuse=reuse)
 
     with tf.variable_scope(scope, reuse=reuse):
         # set up placeholders
@@ -224,29 +221,42 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
 
         # =====================================================================================
         # q network evaluation
-        p_t = p_dist_func(obs_t_input.get(), num_actions, dist_params['nb_atoms'], scope="q_func", reuse=True)  # reuse parameters from act
-        q_t = p_to_q(p_t, dist_params)  # reuse parameters from act
+        quant_t = quant_func(obs_t_input.get(), num_actions, dist_params['nb_atoms'], scope="q_func", reuse=True)  # reuse parameters from act
+        q_t = quant_to_q(quant_t)
         q_func_vars = U.scope_vars(U.absolute_scope_name("q_func"))
 
         # target q network evalution
-        p_tp1 = p_dist_func(obs_tp1_input.get(), num_actions, dist_params['nb_atoms'], scope="target_q_func")
-        q_tp1 = p_to_q(p_tp1, dist_params)
+        quant_tp1 = quant_func(obs_tp1_input.get(), num_actions, dist_params['nb_atoms'], scope="target_q_func")
+        q_tp1 = quant_to_q(quant_tp1)
         target_q_func_vars = U.scope_vars(U.absolute_scope_name("target_q_func"))
 
-        # TODO: use double
+        if double_q:
+            raise NotImplementedError()
 
+        nb_atoms = dist_params['nb_atoms']
+        # quantiles for actions which we know were selected in the given state.
+        quant_t_selected = tf.gather_nd(quant_t, act_t_ph)
+        quant_t_selected.set_shape([None, nb_atoms])
+
+        # pick next action and apply mask
         a_next = tf.argmax(q_tp1, 1, output_type=tf.int32)
-        batch_dim = tf.shape(rew_t_ph)[0]
-        ThTz, debug = build_categorical_alg(p_tp1, rew_t_ph, a_next, gamma, batch_dim, done_mask_ph, dist_params)
+        quant_selected = tf.gather_nd(quant_tp1, a_next)
+        quant_selected.set_shape([None, nb_atoms])
+        quant_masked = tf.einsum('ij,i->ij', quant_selected, 1. - done_mask_ph)
 
-        # compute the error (potentially clipped)
-        cat_idx = tf.transpose(tf.reshape(tf.concat([tf.range(batch_dim), act_t_ph], axis=0), [2, batch_dim]))
-        p_t_next = tf.gather_nd(p_t, cat_idx)
+        # Tth = r + gamma * th
+        quant_target = rew_t_ph + gamma * quant_masked
 
-        cross_entropy = -1 * ThTz * tf.log(p_t_next)
-        errors = tf.reduce_sum(cross_entropy, axis=-1)
+        td_error = quant_t_selected - tf.stop_gradient(quant_target)
+        huber_loss = U.huber_loss(td_error)
+        nb_atoms = dist_params['nb_atoms']
+        tau = tf.range(1, nb_atoms+1, dtype=tf.float32, name='tau') * 1./nb_atoms
+        negative_indicator = tf.cast(huber_loss < 0, tf.float32)
+        print(tau.shape, negative_indicator.shape)
+        quant_weights = tau * negative_indicator
+        quantile_huber_loss = tf.abs(quant_weights) * huber_loss
 
-        mean_error = tf.reduce_mean(errors)
+        mean_error = tf.reduce_mean(quantile_huber_loss)
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
@@ -276,7 +286,7 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
                 done_mask_ph,
                 importance_weights_ph
             ],
-            outputs=errors,
+            outputs=mean_error,
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
@@ -284,36 +294,4 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
         q_values = U.function([obs_t_input], q_t)
 
         return act_f, train, update_target, {'q_values': q_values,
-                                             'p': p_tp1,
-                                             'cross_entropy': cross_entropy,
-                                             'ThTz': ThTz}
-
-
-def build_categorical_alg(p_ph, r_ph, a_next, gamma, batch_dim, done_mask, dist_params):
-    """
-    Builds the vectorized cathegorical algorithm following equation (7) of 
-    'A Distributional Perspective on Reinforcement Learning' - https://arxiv.org/abs/1707.06887
-    """
-    z, dz = build_z(**dist_params)
-    Vmin, Vmax, nb_atoms = dist_params['Vmin'], dist_params['Vmax'], dist_params['nb_atoms']
-    with tf.variable_scope('cathegorical'):
-
-        cat_idx = tf.transpose(tf.reshape(tf.concat([tf.range(batch_dim), a_next], axis=0), [2, batch_dim]))
-        p_best = tf.gather_nd(p_ph, cat_idx)
-
-        big_z = tf.reshape(tf.tile(z, [batch_dim]), [batch_dim, nb_atoms])
-        big_r = tf.transpose(tf.reshape(tf.tile(r_ph, [nb_atoms]), [nb_atoms, batch_dim]))
-
-        Tz = tf.clip_by_value(big_r + gamma * tf.einsum('ij,i->ij', big_z, 1.-done_mask), Vmin, Vmax)
-
-        big_Tz = tf.reshape(tf.tile(Tz, [1, nb_atoms]), [-1, nb_atoms, nb_atoms])
-        big_big_z = tf.reshape(tf.tile(big_z, [1, nb_atoms]), [-1, nb_atoms, nb_atoms])
-
-        Tzz = tf.abs(big_Tz - tf.transpose(big_big_z, [0, 2, 1])) / dz
-        Thz = tf.clip_by_value(1 - Tzz, 0, 1)
-
-        ThTz = tf.einsum('ijk,ik->ij', Thz, p_best)
-
-    return ThTz, {'p_best': p_best}
-
-
+                                             'p': quant_tp1}

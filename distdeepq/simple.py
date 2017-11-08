@@ -87,7 +87,7 @@ def make_session(num_cpu):
 
 
 def learn(env,
-          p_dist_func,
+          quant_func,
           lr=5e-4,
           max_timesteps=100000,
           buffer_size=50000,
@@ -116,7 +116,7 @@ def learn(env,
     -------
     env: gym.Env
         environment to train on
-    p_dist_func: (tf.Variable, int, str, bool) -> tf.Variable
+    quant_func: (tf.Variable, int, str, bool) -> tf.Variable
         the model that takes the following inputs:
             observation_in: object
                 the output of observation placeholder
@@ -188,11 +188,10 @@ def learn(env,
     if dist_params is None:
         raise ValueError('dist_params is required')
 
-    z, dz = build_z(**dist_params)
 
     act, train, update_target, debug = distdeepq.build_train(
         make_obs_ph=make_obs_ph,
-        p_dist_func=p_dist_func,
+        quant_func=quant_func,
         num_actions=env.action_space.n,
         optimizer=tf.train.AdamOptimizer(learning_rate=lr),
         gamma=gamma,
@@ -203,7 +202,7 @@ def learn(env,
 
     act_params = {
         'make_obs_ph': make_obs_ph,
-        'p_dist_func': p_dist_func,
+        'p_dist_func': quant_func,
         'num_actions': env.action_space.n,
         'dist_params': dist_params
     }

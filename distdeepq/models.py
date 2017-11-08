@@ -21,7 +21,6 @@ def _dist_mlp(hiddens, inpt, num_actions, nb_atoms, scope, reuse=False, layer_no
         out = layers.fully_connected(out, num_outputs=num_actions * nb_atoms, activation_fn=None)
 
         out = tf.reshape(out, shape=[-1, num_actions, nb_atoms])
-        out = tf.nn.softmax(out, dim=-1, name='softmax')
         return out
 
 

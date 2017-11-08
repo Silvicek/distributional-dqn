@@ -139,7 +139,7 @@ if __name__ == '__main__':
         # Create training graph and replay buffer
         act, train, update_target, debug = distdeepq.build_train(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
-            p_dist_func=distdeepq.models.atari_model(),
+            quant_func=distdeepq.models.atari_model(),
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=args.lr, epsilon=0.01/args.batch_size),
             gamma=0.99,

@@ -11,7 +11,7 @@ def main():
     )
     act = distdeepq.learn(
         env,
-        p_dist_func=model,
+        quant_func=model,
         lr=1e-4,
         max_timesteps=2000000,
         buffer_size=10000,
