@@ -188,7 +188,6 @@ def learn(env,
     if dist_params is None:
         raise ValueError('dist_params is required')
 
-
     act, train, update_target, debug = distdeepq.build_train(
         make_obs_ph=make_obs_ph,
         quant_func=quant_func,
@@ -275,6 +274,7 @@ def learn(env,
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
+
                 errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
 
                 if prioritized_replay:

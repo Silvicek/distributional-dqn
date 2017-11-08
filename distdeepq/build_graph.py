@@ -235,24 +235,26 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
 
         nb_atoms = dist_params['nb_atoms']
         # quantiles for actions which we know were selected in the given state.
-        quant_t_selected = tf.gather_nd(quant_t, act_t_ph)
+        quant_t_selected = gather_along_second_axis(quant_t, act_t_ph)
         quant_t_selected.set_shape([None, nb_atoms])
 
         # pick next action and apply mask
         a_next = tf.argmax(q_tp1, 1, output_type=tf.int32)
-        quant_selected = tf.gather_nd(quant_tp1, a_next)
+        quant_selected = gather_along_second_axis(quant_tp1, a_next)
         quant_selected.set_shape([None, nb_atoms])
-        quant_masked = tf.einsum('ij,i->ij', quant_selected, 1. - done_mask_ph)
+        quant_masked = tf.einsum('ij,i->ij', quant_selected, 1. - done_mask_ph, name='quant_masked')
 
         # Tth = r + gamma * th
-        quant_target = rew_t_ph + gamma * quant_masked
+        batch_dim = tf.shape(rew_t_ph)[0]
+        rew_t_ph_big = tf.reshape(tf.tile(rew_t_ph, [nb_atoms]), [batch_dim, nb_atoms], 'rew_big')
 
+        quant_target = tf.identity(rew_t_ph_big + gamma * quant_masked, name='quant_target')
+
+        # build loss
         td_error = quant_t_selected - tf.stop_gradient(quant_target)
         huber_loss = U.huber_loss(td_error)
-        nb_atoms = dist_params['nb_atoms']
         tau = tf.range(1, nb_atoms+1, dtype=tf.float32, name='tau') * 1./nb_atoms
-        negative_indicator = tf.cast(huber_loss < 0, tf.float32)
-        print(tau.shape, negative_indicator.shape)
+        negative_indicator = tf.cast(td_error < 0, tf.float32)
         quant_weights = tau * negative_indicator
         quantile_huber_loss = tf.abs(quant_weights) * huber_loss
 
@@ -295,3 +297,9 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
 
         return act_f, train, update_target, {'q_values': q_values,
                                              'p': quant_tp1}
+
+
+def gather_along_second_axis(data, indices):
+    batch_offset = tf.range(0, tf.shape(data)[0])
+    flat_indices = tf.stack([batch_offset, indices], axis=1)
+    return tf.gather_nd(data, flat_indices)
