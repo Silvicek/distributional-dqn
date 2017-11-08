@@ -276,7 +276,7 @@ def build_train(make_obs_ph, p_dist_func, num_actions, optimizer, grad_norm_clip
                 done_mask_ph,
                 importance_weights_ph
             ],
-            outputs=errors,
+            outputs=mean_error,
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
