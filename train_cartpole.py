@@ -29,8 +29,9 @@ def main():
         callback=callback,
         target_network_update_freq=500,
         batch_size=32,
+        # batch_size=4,
         gamma=0.95,
-        dist_params={'nb_atoms': 11}
+        dist_params={'nb_atoms': 3}
     )
     print("Saving model to cartpole_model.pkl")
     act.save("cartpole_model.pkl")

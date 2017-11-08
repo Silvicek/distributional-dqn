@@ -277,6 +277,13 @@ def learn(env,
 
                 errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
 
+                # print(errors)
+
+                d = sess.run(debug['quant_tp1'],
+                             {"distdeepq_1/obs_t:0": obses_t, 'distdeepq_1/obs_tp1:0': obses_tp1, 'distdeepq_1/action:0': actions,
+                              'distdeepq_1/reward:0': rewards, 'distdeepq_1/done:0': dones})
+                # print(d.shape)
+
                 if prioritized_replay:
                     new_priorities = np.abs(errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)

@@ -220,20 +220,21 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         importance_weights_ph = tf.placeholder(tf.float32, [None], name="weight")
 
         # =====================================================================================
+        nb_atoms = dist_params['nb_atoms']
+
         # q network evaluation
-        quant_t = quant_func(obs_t_input.get(), num_actions, dist_params['nb_atoms'], scope="q_func", reuse=True)  # reuse parameters from act
+        quant_t = quant_func(obs_t_input.get(), num_actions, nb_atoms, scope="q_func", reuse=True)  # reuse parameters from act
         q_t = quant_to_q(quant_t)
         q_func_vars = U.scope_vars(U.absolute_scope_name("q_func"))
 
         # target q network evalution
-        quant_tp1 = quant_func(obs_tp1_input.get(), num_actions, dist_params['nb_atoms'], scope="target_q_func")
+        quant_tp1 = quant_func(obs_tp1_input.get(), num_actions, nb_atoms, scope="target_q_func")
         q_tp1 = quant_to_q(quant_tp1)
         target_q_func_vars = U.scope_vars(U.absolute_scope_name("target_q_func"))
 
         if double_q:
             raise NotImplementedError()
 
-        nb_atoms = dist_params['nb_atoms']
         # quantiles for actions which we know were selected in the given state.
         quant_t_selected = gather_along_second_axis(quant_t, act_t_ph)
         quant_t_selected.set_shape([None, nb_atoms])
@@ -250,24 +251,40 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
 
         quant_target = tf.identity(rew_t_ph_big + gamma * quant_masked, name='quant_target')
 
-        # build loss
-        td_error = quant_t_selected - tf.stop_gradient(quant_target)
-        huber_loss = U.huber_loss(td_error)
-        tau = tf.range(1, nb_atoms+1, dtype=tf.float32, name='tau') * 1./nb_atoms
-        negative_indicator = tf.cast(td_error < 0, tf.float32)
-        quant_weights = tau * negative_indicator
-        quantile_huber_loss = tf.abs(quant_weights) * huber_loss
+        # increase dimensions (?, n, n)
+        big_quant_target = tf.reshape(tf.tile(quant_target, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
+                                      name='big_quant_target')
+        big_quant_t_selected = tf.transpose(tf.reshape(tf.tile(quant_t_selected, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
+                                            name='big_quant_t_selected'), perm=[0, 2, 1])
 
-        mean_error = tf.reduce_mean(quantile_huber_loss)
+        # build loss
+        td_error = tf.stop_gradient(big_quant_target) - big_quant_t_selected
+
+        # huber_loss = U.huber_loss(td_error)
+        huber_loss = td_error
+
+        tau = tf.range(0, nb_atoms+1, dtype=tf.float32, name='tau') * 1./nb_atoms
+        tau_hat = (tau[:-1] + tau[1:]) / 2
+
+        negative_indicator = tf.cast(td_error < 0, tf.float32)
+        # quant_weights = tf.abs(tau_hat - negative_indicator)  # TODO: check (tau should mirror i)
+        quant_weights = tau_hat - negative_indicator  # TODO: check (tau should mirror i)
+        quantile_huber_loss = quant_weights * huber_loss
+
+        print(tau_hat, negative_indicator, quant_weights)
+
+        error = tf.reduce_mean(quantile_huber_loss, axis=-2)  # E_j
+        error = tf.reduce_sum(error, axis=-1)  # atoms
+        error = tf.reduce_mean(error)  # batch
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
             optimize_expr = U.minimize_and_clip(optimizer,
-                                                mean_error,
+                                                error,
                                                 var_list=q_func_vars,
                                                 clip_val=grad_norm_clipping)
         else:
-            optimize_expr = optimizer.minimize(mean_error, var_list=q_func_vars)
+            optimize_expr = optimizer.minimize(error, var_list=q_func_vars)
 
         # =====================================================================================
 
@@ -288,7 +305,7 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
                 done_mask_ph,
                 importance_weights_ph
             ],
-            outputs=mean_error,
+            outputs=error,
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
@@ -296,7 +313,7 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         q_values = U.function([obs_t_input], q_t)
 
         return act_f, train, update_target, {'q_values': q_values,
-                                             'p': quant_tp1}
+                                             'quant_tp1': quant_tp1}
 
 
 def gather_along_second_axis(data, indices):
