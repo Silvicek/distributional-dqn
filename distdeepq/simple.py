@@ -11,7 +11,6 @@ from baselines import logger
 from baselines.common.schedules import LinearSchedule
 import distdeepq
 from distdeepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from .static import build_z
 
 
 class ActWrapper(object):
@@ -275,14 +274,31 @@ def learn(env,
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
 
+                # ===========================================================================
+
+                if t % 20000 == 0:
+                # if True:
+                    inputs = {'distdeepq_1/obs_t:0': obses_t, 'distdeepq_1/obs_tp1:0': obses_tp1,
+                              'distdeepq_1/action:0': actions, 'distdeepq_1/reward:0': rewards,
+                              'distdeepq_1/done:0': dones}
+                    print(sess.run(debug['quant_t_selected'], inputs)[0])
+
+                    # print(rewards[0] + gamma * sess.run(debug['quant_tp1'], inputs)[0])
+                    print(sess.run(debug['quant_target'], inputs)[0])
+                    # print(sess.run(debug['quant_masked'], inputs))
+                    # print(sess.run(debug['tau_hat'], inputs))
+                    # print(sess.run(debug['negative_indicator'], inputs))
+                    # print(sess.run(debug['quant_weights'], inputs))
+                    # print(sess.run(debug['quant_target'], inputs))
+                    # print(sess.run(debug['big_quant_target'], inputs))
+                    # errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+
+                    # print('--------------')
+                    # print(sess.run(debug['quant_t_selected'], inputs)[0])
+                    # quit()
+                    # ===========================================================================
+
                 errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
-
-                # print(errors)
-
-                d = sess.run(debug['quant_tp1'],
-                             {"distdeepq_1/obs_t:0": obses_t, 'distdeepq_1/obs_tp1:0': obses_tp1, 'distdeepq_1/action:0': actions,
-                              'distdeepq_1/reward:0': rewards, 'distdeepq_1/done:0': dones})
-                # print(d.shape)
 
                 if prioritized_replay:
                     new_priorities = np.abs(errors) + prioritized_replay_eps

@@ -62,20 +62,8 @@ def _cnn_to_dist_mlp(convs, hiddens, dueling, inpt, num_actions, nb_atoms, scope
 
         if dueling:
             raise ValueError('Dueling not supported')
-            # with tf.variable_scope("state_value"):
-            #     state_out = conv_out
-            #     for hidden in hiddens:
-            #         state_out = layers.fully_connected(state_out, num_outputs=hidden, activation_fn=None)
-            #         if layer_norm:
-            #             state_out = layers.layer_norm(state_out, center=True, scale=True)
-            #         state_out = tf.nn.relu(state_out)
-            #     state_score = layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
-            # action_scores_mean = tf.reduce_mean(action_scores, 1)
-            # action_scores_centered = action_scores - tf.expand_dims(action_scores_mean, 1)
-            # q_out = state_score + action_scores_centered
         else:
             out = tf.reshape(action_scores, shape=[-1, num_actions, nb_atoms])
-            out = tf.nn.softmax(out, dim=-1, name='softmax')
         return out
 
 

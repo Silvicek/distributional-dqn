@@ -20,18 +20,15 @@ def main():
     act = distdeepq.learn(
         env,
         quant_func=model,
-        lr=3e-4,
+        lr=1e-3,
         max_timesteps=100000,
         buffer_size=50000,
-        exploration_fraction=0.1,
+        exploration_fraction=0.2,
         exploration_final_eps=0.02,
         print_freq=10,
         callback=callback,
-        target_network_update_freq=500,
         batch_size=32,
-        # batch_size=4,
-        gamma=0.95,
-        dist_params={'nb_atoms': 3}
+        dist_params={'nb_atoms': 1, 'huber_loss': True}
     )
     print("Saving model to cartpole_model.pkl")
     act.save("cartpole_model.pkl")

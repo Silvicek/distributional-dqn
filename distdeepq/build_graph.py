@@ -206,7 +206,7 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
     """
 
     if param_noise:
-        raise ValueError('parameter noise not supported')
+        raise NotImplementedError()
     else:
         act_f = build_act(make_obs_ph, quant_func, num_actions, dist_params, scope=scope, reuse=reuse)
 
@@ -224,7 +224,6 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
 
         # q network evaluation
         quant_t = quant_func(obs_t_input.get(), num_actions, nb_atoms, scope="q_func", reuse=True)  # reuse parameters from act
-        q_t = quant_to_q(quant_t)
         q_func_vars = U.scope_vars(U.absolute_scope_name("q_func"))
 
         # target q network evalution
@@ -252,30 +251,31 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         quant_target = tf.identity(rew_t_ph_big + gamma * quant_masked, name='quant_target')
 
         # increase dimensions (?, n, n)
-        big_quant_target = tf.reshape(tf.tile(quant_target, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
-                                      name='big_quant_target')
-        big_quant_t_selected = tf.transpose(tf.reshape(tf.tile(quant_t_selected, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
-                                            name='big_quant_t_selected'), perm=[0, 2, 1])
+        big_quant_target = tf.transpose(tf.reshape(tf.tile(quant_target, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
+                                        name='big_quant_target'), perm=[0, 2, 1])
+        big_quant_t_selected = tf.reshape(tf.tile(quant_t_selected, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
+                                          name='big_quant_t_selected')
 
         # build loss
         td_error = tf.stop_gradient(big_quant_target) - big_quant_t_selected
 
-        # huber_loss = U.huber_loss(td_error)
-        huber_loss = td_error
+        negative_indicator = tf.cast(td_error < 0, tf.float32)
 
-        tau = tf.range(0, nb_atoms+1, dtype=tf.float32, name='tau') * 1./nb_atoms
+        tau = tf.range(0, nb_atoms + 1, dtype=tf.float32, name='tau') * 1. / nb_atoms
         tau_hat = (tau[:-1] + tau[1:]) / 2
 
-        negative_indicator = tf.cast(td_error < 0, tf.float32)
-        # quant_weights = tf.abs(tau_hat - negative_indicator)  # TODO: check (tau should mirror i)
-        quant_weights = tau_hat - negative_indicator  # TODO: check (tau should mirror i)
-        quantile_huber_loss = quant_weights * huber_loss
+        if dist_params['huber_loss']:
+            huber_loss = U.huber_loss(td_error)
+            quant_weights = tf.abs(tau_hat - negative_indicator)
+            quantile_loss = quant_weights * huber_loss
+        else:
+            quant_weights = tau_hat - negative_indicator
+            quantile_loss = quant_weights * td_error
 
-        print(tau_hat, negative_indicator, quant_weights)
-
-        error = tf.reduce_mean(quantile_huber_loss, axis=-2)  # E_j
-        error = tf.reduce_sum(error, axis=-1)  # atoms
-        error = tf.reduce_mean(error)  # batch
+        # error = tf.reduce_mean(quantile_loss, axis=-2)  # E_j
+        # error = tf.reduce_sum(error, axis=-1)  # atoms
+        # error = tf.reduce_mean(error)  # batch
+        error = tf.reduce_mean(td_error**2)  # naive
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
@@ -310,10 +310,18 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         )
         update_target = U.function([], [], updates=[update_target_expr])
 
-        q_values = U.function([obs_t_input], q_t)
-
-        return act_f, train, update_target, {'q_values': q_values,
-                                             'quant_tp1': quant_tp1}
+        return act_f, train, update_target, {'quant_t': quant_t,
+                                             'quant_tp1': quant_tp1,
+                                             'quant_selected': quant_selected,
+                                             'quant_t_selected': quant_t_selected,
+                                             'quant_masked': quant_masked,
+                                             'tau_hat': tau_hat,
+                                             'td_err': td_error,
+                                             'negative_indicator': negative_indicator,
+                                             'quant_weights': quant_weights,
+                                             'quant_target': quant_target,
+                                             'big_quant_target': big_quant_target,
+                                             }
 
 
 def gather_along_second_axis(data, indices):
