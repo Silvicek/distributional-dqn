@@ -143,7 +143,6 @@ if __name__ == '__main__':
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=args.lr, epsilon=0.01/args.batch_size),
             gamma=0.99,
-            grad_norm_clipping=10,
             double_q=args.double_q,
             param_noise=args.param_noise,
             dist_params={'Vmin': args.vmin,

@@ -43,7 +43,8 @@ def make_env(game_name):
     from baselines.common.atari_wrappers import wrap_deepmind, make_atari
     env = make_atari(game_name + "NoFrameskip-v4")
     monitored_env = SimpleMonitor(env)
-    env = wrap_deepmind(monitored_env)
+    # TODO: port to c51
+    env = wrap_deepmind(monitored_env, frame_stack=True, scale=True)
     return env, monitored_env
 
 

@@ -16,7 +16,7 @@ def main():
     np.random.seed(1337)
     tf.set_random_seed(1337)
 
-    model = distdeepq.models.dist_mlp([64])
+    model = distdeepq.models.mlp([64])
     act = distdeepq.learn(
         env,
         quant_func=model,
@@ -28,7 +28,7 @@ def main():
         print_freq=10,
         callback=callback,
         batch_size=32,
-        dist_params={'nb_atoms': 1, 'huber_loss': True}
+        dist_params={'nb_atoms': 10, 'huber_loss': True}
     )
     print("Saving model to cartpole_model.pkl")
     act.save("cartpole_model.pkl")

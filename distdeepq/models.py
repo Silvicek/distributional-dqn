@@ -3,13 +3,13 @@ import tensorflow.contrib.layers as layers
 
 
 def atari_model():
-    model = cnn_to_dist_mlp(
+    model = cnn_to_mlp(
             convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
             hiddens=[512])
     return model
 
 
-def _dist_mlp(hiddens, inpt, num_actions, nb_atoms, scope, reuse=False, layer_norm=False):
+def _mlp(hiddens, inpt, num_actions, nb_atoms, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         for hidden in hiddens:
@@ -20,11 +20,11 @@ def _dist_mlp(hiddens, inpt, num_actions, nb_atoms, scope, reuse=False, layer_no
 
         out = layers.fully_connected(out, num_outputs=num_actions * nb_atoms, activation_fn=None)
 
-        out = tf.reshape(out, shape=[-1, num_actions, nb_atoms])
+        out = tf.reshape(out, shape=[-1, num_actions, nb_atoms], name='quantiles')
         return out
 
 
-def dist_mlp(hiddens=[], layer_norm=False):
+def mlp(hiddens=[], layer_norm=False):
     """This model takes as input an observation and returns values of all actions.
 
     Parameters
@@ -37,10 +37,10 @@ def dist_mlp(hiddens=[], layer_norm=False):
     p_dist_func: function
         p_dist_function for DistDQN algorithm.
     """
-    return lambda *args, **kwargs: _dist_mlp(hiddens, layer_norm=layer_norm, *args, **kwargs)
+    return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, *args, **kwargs)
 
 
-def _cnn_to_dist_mlp(convs, hiddens, dueling, inpt, num_actions, nb_atoms, scope, reuse=False, layer_norm=False):
+def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, nb_atoms, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         with tf.variable_scope("convnet"):
@@ -63,11 +63,11 @@ def _cnn_to_dist_mlp(convs, hiddens, dueling, inpt, num_actions, nb_atoms, scope
         if dueling:
             raise ValueError('Dueling not supported')
         else:
-            out = tf.reshape(action_scores, shape=[-1, num_actions, nb_atoms])
+            out = tf.reshape(action_scores, shape=[-1, num_actions, nb_atoms], name='quantiles')
         return out
 
 
-def cnn_to_dist_mlp(convs, hiddens, dueling=False, layer_norm=False):
+def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
     """This model takes as input an observation and returns values of all actions.
 
     Parameters
@@ -87,5 +87,5 @@ def cnn_to_dist_mlp(convs, hiddens, dueling=False, layer_norm=False):
         q_function for DQN algorithm.
     """
 
-    return lambda *args, **kwargs: _cnn_to_dist_mlp(convs, hiddens, dueling, layer_norm=layer_norm, *args, **kwargs)
+    return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, dueling, layer_norm=layer_norm, *args, **kwargs)
 

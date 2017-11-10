@@ -90,7 +90,7 @@ def quant_to_q(p_values):
 
 def pick_action(p_values):
     q_values = quant_to_q(p_values)
-    deterministic_actions = tf.argmax(q_values, axis=1)
+    deterministic_actions = tf.argmax(q_values, axis=-1)
     return deterministic_actions
 
 
@@ -239,15 +239,14 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         quant_t_selected.set_shape([None, nb_atoms])
 
         # pick next action and apply mask
-        a_next = tf.argmax(q_tp1, 1, output_type=tf.int32)
-        quant_selected = gather_along_second_axis(quant_tp1, a_next)
-        quant_selected.set_shape([None, nb_atoms])
-        quant_masked = tf.einsum('ij,i->ij', quant_selected, 1. - done_mask_ph, name='quant_masked')
+        a_next = tf.argmax(q_tp1, -1, output_type=tf.int32)
+        quant_tp1_selected = gather_along_second_axis(quant_tp1, a_next)
+        quant_tp1_selected.set_shape([None, nb_atoms])
+        quant_masked = tf.einsum('ij,i->ij', quant_tp1_selected, 1. - done_mask_ph, name='quant_masked')
 
         # Tth = r + gamma * th
         batch_dim = tf.shape(rew_t_ph)[0]
         rew_t_ph_big = tf.reshape(tf.tile(rew_t_ph, [nb_atoms]), [batch_dim, nb_atoms], 'rew_big')
-
         quant_target = tf.identity(rew_t_ph_big + gamma * quant_masked, name='quant_target')
 
         # increase dimensions (?, n, n)
@@ -272,10 +271,10 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
             quant_weights = tau_hat - negative_indicator
             quantile_loss = quant_weights * td_error
 
-        # error = tf.reduce_mean(quantile_loss, axis=-2)  # E_j
-        # error = tf.reduce_sum(error, axis=-1)  # atoms
-        # error = tf.reduce_mean(error)  # batch
-        error = tf.reduce_mean(td_error**2)  # naive
+        error = tf.reduce_mean(quantile_loss, axis=-2)  # E_j
+        error = tf.reduce_sum(error, axis=-1)  # atoms
+        error = tf.reduce_mean(error)  # batch
+        # error = tf.reduce_mean(td_error**2)  # naive
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
@@ -310,9 +309,11 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         )
         update_target = U.function([], [], updates=[update_target_expr])
 
+        quant_values = U.function([obs_t_input], quant_t)
+
         return act_f, train, update_target, {'quant_t': quant_t,
                                              'quant_tp1': quant_tp1,
-                                             'quant_selected': quant_selected,
+                                             'quant_tp1_selected': quant_tp1_selected,
                                              'quant_t_selected': quant_t_selected,
                                              'quant_masked': quant_masked,
                                              'tau_hat': tau_hat,
@@ -321,6 +322,7 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
                                              'quant_weights': quant_weights,
                                              'quant_target': quant_target,
                                              'big_quant_target': big_quant_target,
+                                             'quant_values': quant_values
                                              }
 
 

@@ -91,7 +91,7 @@ def learn(env,
           max_timesteps=100000,
           buffer_size=50000,
           exploration_fraction=0.1,
-          exploration_final_eps=0.02,
+          exploration_final_eps=0.01,
           train_freq=1,
           batch_size=32,
           print_freq=1,
@@ -104,7 +104,7 @@ def learn(env,
           prioritized_replay_beta0=0.4,
           prioritized_replay_beta_iters=None,
           prioritized_replay_eps=1e-6,
-          num_cpu=16,
+          num_cpu=4,
           param_noise=False,
           callback=None,
           dist_params=None
@@ -191,9 +191,8 @@ def learn(env,
         make_obs_ph=make_obs_ph,
         quant_func=quant_func,
         num_actions=env.action_space.n,
-        optimizer=tf.train.AdamOptimizer(learning_rate=lr),
+        optimizer=tf.train.AdamOptimizer(learning_rate=lr, epsilon=0.01/32),
         gamma=gamma,
-        grad_norm_clipping=10,
         param_noise=param_noise,
         dist_params=dist_params
     )
@@ -229,6 +228,10 @@ def learn(env,
     saved_mean_reward = None
     obs = env.reset()
     reset = True
+    # init_w = [x for x in tf.trainable_variables() if x.name == 'distdeepq/target_q_func/action_value/fully_connected_1/weights:0']
+    # w = sess.run(init_w[0])
+    # print(tf.trainable_variables())
+    # print(np.mean(w), np.std(w))
     with tempfile.TemporaryDirectory() as td:
         model_saved = False
         model_file = os.path.join(td, "model")
@@ -251,6 +254,10 @@ def learn(env,
                 kwargs['reset'] = reset
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
+            # print(debug['quant_values'](np.ones_like(np.array(obs)[None])))
+            # print(debug['quant_values'](np.array(obs)[None]))
+            # print(np.array(obs)[None])
+            # quit()
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             reset = False
             new_obs, rew, done, _ = env.step(action)
@@ -276,15 +283,20 @@ def learn(env,
 
                 # ===========================================================================
 
-                if t % 20000 == 0:
+                if t % 10000 == 0:
+                # if -1 in rewards:
                 # if True:
                     inputs = {'distdeepq_1/obs_t:0': obses_t, 'distdeepq_1/obs_tp1:0': obses_tp1,
                               'distdeepq_1/action:0': actions, 'distdeepq_1/reward:0': rewards,
                               'distdeepq_1/done:0': dones}
-                    print(sess.run(debug['quant_t_selected'], inputs)[0])
+                    print(sess.run(debug['quant_t'], inputs)[0])
 
                     # print(rewards[0] + gamma * sess.run(debug['quant_tp1'], inputs)[0])
+                    # print(sess.run(debug['quant_selected'], inputs)[0])
+
                     print(sess.run(debug['quant_target'], inputs)[0])
+                    print(rewards)
+                    print('----')
                     # print(sess.run(debug['quant_masked'], inputs))
                     # print(sess.run(debug['tau_hat'], inputs))
                     # print(sess.run(debug['negative_indicator'], inputs))
