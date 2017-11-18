@@ -14,8 +14,8 @@ def main():
         episode_rew = 0
         while not done:
             env.render()
-            obs, rew, done, _ = env.step(np.array(act(obs[None]))[0])
-            plot_machine.plot_distribution(np.array(obs[None]))
+            obs, rew, done, _ = env.step(act(np.array(obs)[None])[0])
+            plot_machine.plot_distribution(np.array(obs)[None])
             episode_rew += rew
         print("Episode reward", episode_rew)
 

@@ -241,7 +241,7 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         a_star = pick_action(quant_tp1)
         quant_tp1_star = gather_along_second_axis(quant_tp1, a_star)
         quant_tp1_star.set_shape([None, nb_atoms])
-        quant_tp1_star = tf.einsum('ij,i->ij', quant_tp1_star, 1. - done_mask_ph, name='quant_tp1_star')
+        quant_tp1_star = tf.einsum('ij,i->ij', quant_tp1_star, 1. - done_mask_ph)
 
         # Tth = r + gamma * th
         batch_dim = tf.shape(rew_t_ph)[0]
@@ -271,6 +271,7 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         #   [Tth2-th1 Tth2-th2 ... Tth2-thn]
         #   [...                           ]
         #   [Tthn-th1 Tthn-th2 ... Tthn-thn]]
+        # TODO: skip tiling
 
         negative_indicator = tf.cast(td_error < 0, tf.float32)
 
