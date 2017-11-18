@@ -191,7 +191,8 @@ def learn(env,
         make_obs_ph=make_obs_ph,
         quant_func=quant_func,
         num_actions=env.action_space.n,
-        optimizer=tf.train.AdamOptimizer(learning_rate=lr, epsilon=0.01/32),
+        # optimizer=tf.train.AdamOptimizer(learning_rate=lr, epsilon=0.01/32),
+        optimizer=tf.train.AdamOptimizer(learning_rate=lr),
         gamma=gamma,
         param_noise=param_noise,
         dist_params=dist_params
@@ -283,19 +284,24 @@ def learn(env,
 
                 # ===========================================================================
 
-                if t % 10000 == 0:
                 # if -1 in rewards:
                 # if True:
+                if t % 10000 == 0:
                     inputs = {'distdeepq_1/obs_t:0': obses_t, 'distdeepq_1/obs_tp1:0': obses_tp1,
                               'distdeepq_1/action:0': actions, 'distdeepq_1/reward:0': rewards,
                               'distdeepq_1/done:0': dones}
-                    print(sess.run(debug['quant_t'], inputs)[0])
+                    print('--quant_t_selected')
+                    print(sess.run(debug['quant_t_selected'], inputs))
+                    print('--quant_tp1_star')
+                    print(sess.run(debug['quant_tp1_star'], inputs))
 
                     # print(rewards[0] + gamma * sess.run(debug['quant_tp1'], inputs)[0])
                     # print(sess.run(debug['quant_selected'], inputs)[0])
-
-                    print(sess.run(debug['quant_target'], inputs)[0])
+                    print('--quant_target')
+                    print(sess.run(debug['quant_target'], inputs))
+                    print(actions)
                     print(rewards)
+                    print(sess.run(debug['a_star'], inputs))
                     print('----')
                     # print(sess.run(debug['quant_masked'], inputs))
                     # print(sess.run(debug['tau_hat'], inputs))

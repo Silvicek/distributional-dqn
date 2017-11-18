@@ -90,7 +90,7 @@ def quant_to_q(p_values):
 
 def pick_action(p_values):
     q_values = quant_to_q(p_values)
-    deterministic_actions = tf.argmax(q_values, axis=-1)
+    deterministic_actions = tf.argmax(q_values, axis=-1, output_type=tf.int32)
     return deterministic_actions
 
 
@@ -135,7 +135,7 @@ def build_act(make_obs_ph, p_dist_func, num_actions, dist_params, scope="distdee
         deterministic_actions = pick_action(p_values)
 
         batch_size = tf.shape(observations_ph.get())[0]
-        random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
+        random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int32)
         chose_random = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=1, dtype=tf.float32) < eps
         stochastic_actions = tf.where(chose_random, random_actions, deterministic_actions)
 
@@ -228,7 +228,6 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
 
         # target q network evalution
         quant_tp1 = quant_func(obs_tp1_input.get(), num_actions, nb_atoms, scope="target_q_func")
-        q_tp1 = quant_to_q(quant_tp1)
         target_q_func_vars = U.scope_vars(U.absolute_scope_name("target_q_func"))
 
         if double_q:
@@ -239,29 +238,44 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         quant_t_selected.set_shape([None, nb_atoms])
 
         # pick next action and apply mask
-        a_next = tf.argmax(q_tp1, -1, output_type=tf.int32)
-        quant_tp1_selected = gather_along_second_axis(quant_tp1, a_next)
-        quant_tp1_selected.set_shape([None, nb_atoms])
-        quant_masked = tf.einsum('ij,i->ij', quant_tp1_selected, 1. - done_mask_ph, name='quant_masked')
+        a_star = pick_action(quant_tp1)
+        quant_tp1_star = gather_along_second_axis(quant_tp1, a_star)
+        quant_tp1_star.set_shape([None, nb_atoms])
+        quant_tp1_star = tf.einsum('ij,i->ij', quant_tp1_star, 1. - done_mask_ph, name='quant_tp1_star')
 
         # Tth = r + gamma * th
         batch_dim = tf.shape(rew_t_ph)[0]
-        rew_t_ph_big = tf.reshape(tf.tile(rew_t_ph, [nb_atoms]), [batch_dim, nb_atoms], 'rew_big')
-        quant_target = tf.identity(rew_t_ph_big + gamma * quant_masked, name='quant_target')
+        quant_target = tf.identity(rew_t_ph[:, tf.newaxis] + gamma * quant_tp1_star, name='quant_target')
 
         # increase dimensions (?, n, n)
         big_quant_target = tf.transpose(tf.reshape(tf.tile(quant_target, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
                                         name='big_quant_target'), perm=[0, 2, 1])
+        # big_quant_target[0] =
+        #  [[Tth1 Tth1 ... Tth1]
+        #   [Tth2 Tth2 ... Tth2]
+        #   [...               ]
+        #   [Tthn Tthn ... Tthn]]
+
         big_quant_t_selected = tf.reshape(tf.tile(quant_t_selected, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
                                           name='big_quant_t_selected')
+        # big_quant_t_selected[0] =
+        #  [[th1 th2 ... thn]
+        #   [th1 th2 ... thn]
+        #   [...            ]
+        #   [th1 th2 ... thn]]
 
         # build loss
         td_error = tf.stop_gradient(big_quant_target) - big_quant_t_selected
+        # td_error[0]=
+        #  [[Tth1-th1 Tth1-th2 ... Tth1-thn]
+        #   [Tth2-th1 Tth2-th2 ... Tth2-thn]
+        #   [...                           ]
+        #   [Tthn-th1 Tthn-th2 ... Tthn-thn]]
 
         negative_indicator = tf.cast(td_error < 0, tf.float32)
 
         tau = tf.range(0, nb_atoms + 1, dtype=tf.float32, name='tau') * 1. / nb_atoms
-        tau_hat = (tau[:-1] + tau[1:]) / 2
+        tau_hat = tf.identity((tau[:-1] + tau[1:]) / 2, name='tau_hat')
 
         if dist_params['huber_loss']:
             huber_loss = U.huber_loss(td_error)
@@ -271,17 +285,16 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
             quant_weights = tau_hat - negative_indicator
             quantile_loss = quant_weights * td_error
 
-        error = tf.reduce_mean(quantile_loss, axis=-2)  # E_j
-        error = tf.reduce_sum(error, axis=-1)  # atoms
-        error = tf.reduce_mean(error)  # batch
-        # error = tf.reduce_mean(td_error**2)  # naive
+        # # elaborate:
+        # error = tf.reduce_mean(quantile_loss, axis=-2)  # E_j
+        # error = tf.reduce_sum(error, axis=-1)  # atoms
+        # error = tf.reduce_mean(error)  # batch
+        # # simple:
+        error = tf.reduce_mean(quantile_loss)
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
-            optimize_expr = U.minimize_and_clip(optimizer,
-                                                error,
-                                                var_list=q_func_vars,
-                                                clip_val=grad_norm_clipping)
+            raise NotImplementedError('huber loss == norm clipping')
         else:
             optimize_expr = optimizer.minimize(error, var_list=q_func_vars)
 
@@ -313,16 +326,16 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
 
         return act_f, train, update_target, {'quant_t': quant_t,
                                              'quant_tp1': quant_tp1,
-                                             'quant_tp1_selected': quant_tp1_selected,
                                              'quant_t_selected': quant_t_selected,
-                                             'quant_masked': quant_masked,
+                                             'quant_tp1_star': quant_tp1_star,
                                              'tau_hat': tau_hat,
                                              'td_err': td_error,
                                              'negative_indicator': negative_indicator,
                                              'quant_weights': quant_weights,
                                              'quant_target': quant_target,
                                              'big_quant_target': big_quant_target,
-                                             'quant_values': quant_values
+                                             'quant_values': quant_values,
+                                             'a_star': a_star
                                              }
 
 
