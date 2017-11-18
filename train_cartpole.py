@@ -1,6 +1,5 @@
 import gym
-import numpy as np
-import tensorflow as tf
+from baselines.common import set_global_seeds
 import distdeepq
 
 
@@ -12,9 +11,7 @@ def callback(lcl, glb):
 
 def main():
     env = gym.make("CartPole-v0")
-    env.seed(1337)
-    np.random.seed(1337)
-    tf.set_random_seed(1337)
+    set_global_seeds(1337)
 
     model = distdeepq.models.mlp([64])
     act = distdeepq.learn(

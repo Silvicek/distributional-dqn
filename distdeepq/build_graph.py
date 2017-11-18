@@ -324,19 +324,7 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
 
         quant_values = U.function([obs_t_input], quant_t)
 
-        return act_f, train, update_target, {'quant_t': quant_t,
-                                             'quant_tp1': quant_tp1,
-                                             'quant_t_selected': quant_t_selected,
-                                             'quant_tp1_star': quant_tp1_star,
-                                             'tau_hat': tau_hat,
-                                             'td_err': td_error,
-                                             'negative_indicator': negative_indicator,
-                                             'quant_weights': quant_weights,
-                                             'quant_target': quant_target,
-                                             'big_quant_target': big_quant_target,
-                                             'quant_values': quant_values,
-                                             'a_star': a_star
-                                             }
+        return act_f, train, update_target, {'quant_values': quant_values}
 
 
 def gather_along_second_axis(data, indices):

@@ -81,7 +81,11 @@ def make_session(num_cpu):
     tf_config = tf.ConfigProto(
         inter_op_parallelism_threads=num_cpu,
         intra_op_parallelism_threads=num_cpu)
-    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.25
+    gpu_frac = 0.25
+    tf_config.gpu_options.per_process_gpu_memory_fraction = gpu_frac
+    import warnings
+    warnings.warn("GPU is using a fixed fraction of memory: %.2f" % gpu_frac)
+
     return tf.Session(config=tf_config)
 
 
@@ -281,40 +285,6 @@ def learn(env,
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
-
-                # ===========================================================================
-
-                # if -1 in rewards:
-                # if True:
-                if t % 10000 == 0:
-                    inputs = {'distdeepq_1/obs_t:0': obses_t, 'distdeepq_1/obs_tp1:0': obses_tp1,
-                              'distdeepq_1/action:0': actions, 'distdeepq_1/reward:0': rewards,
-                              'distdeepq_1/done:0': dones}
-                    print('--quant_t_selected')
-                    print(sess.run(debug['quant_t_selected'], inputs))
-                    print('--quant_tp1_star')
-                    print(sess.run(debug['quant_tp1_star'], inputs))
-
-                    # print(rewards[0] + gamma * sess.run(debug['quant_tp1'], inputs)[0])
-                    # print(sess.run(debug['quant_selected'], inputs)[0])
-                    print('--quant_target')
-                    print(sess.run(debug['quant_target'], inputs))
-                    print(actions)
-                    print(rewards)
-                    print(sess.run(debug['a_star'], inputs))
-                    print('----')
-                    # print(sess.run(debug['quant_masked'], inputs))
-                    # print(sess.run(debug['tau_hat'], inputs))
-                    # print(sess.run(debug['negative_indicator'], inputs))
-                    # print(sess.run(debug['quant_weights'], inputs))
-                    # print(sess.run(debug['quant_target'], inputs))
-                    # print(sess.run(debug['big_quant_target'], inputs))
-                    # errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
-
-                    # print('--------------')
-                    # print(sess.run(debug['quant_t_selected'], inputs)[0])
-                    # quit()
-                    # ===========================================================================
 
                 errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
 

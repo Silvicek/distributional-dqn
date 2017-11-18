@@ -15,7 +15,7 @@ def main():
         env,
         quant_func=model,
         lr=1e-4,
-        max_timesteps=int(5e6),
+        max_timesteps=int(2e6),
         buffer_size=100000,
         exploration_fraction=0.1,
         exploration_final_eps=0.01,

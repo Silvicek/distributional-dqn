@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument("--param-noise-update-freq", type=int, default=50, help="number of iterations between every re-scaling of the parameter noise")
     parser.add_argument("--param-noise-reset-freq", type=int, default=10000, help="maximum number of steps to take per episode before re-perturbing the exploration policy")
     # Bells and whistles
-    boolean_flag(parser, "double-q", default=True, help="whether or not to use double q learning")
+    boolean_flag(parser, "double-q", default=False, help="whether or not to use double q learning")
     boolean_flag(parser, "dueling", default=False, help="whether or not to use dueling model")
     boolean_flag(parser, "prioritized", default=False, help="whether or not to use prioritized replay buffer")
     boolean_flag(parser, "param-noise", default=False, help="whether or not to use parameter space noise for exploration")
@@ -51,9 +51,8 @@ def parse_args():
     parser.add_argument("--prioritized-beta0", type=float, default=0.4, help="initial value of beta parameters for prioritized replay")
     parser.add_argument("--prioritized-eps", type=float, default=1e-6, help="eps parameter for prioritized replay buffer")
     # Distributional Perspective
-    parser.add_argument("--vmin", type=float, default=-10., help="lower bound for histogram atoms")
-    parser.add_argument("--vmax", type=float, default=10., help="upper bound for histogram atoms")
-    parser.add_argument("--nb-atoms", type=int, default=51, help="number of histogram atoms")
+    boolean_flag(parser, "huber-loss", default=True, help="whether or not to use quantile huber loss")
+    parser.add_argument("--nb-atoms", type=int, default=100, help="number of quantile atoms")
     # Checkpointing
     parser.add_argument("--save-dir", type=str, default=None, help="directory in which training state and model should be saved.")
     parser.add_argument("--save-azure-container", type=str, default=None,
@@ -145,8 +144,7 @@ if __name__ == '__main__':
             gamma=0.99,
             double_q=args.double_q,
             param_noise=args.param_noise,
-            dist_params={'Vmin': args.vmin,
-                         'Vmax': args.vmax,
+            dist_params={'huber_loss': args.huber_loss,
                          'nb_atoms': args.nb_atoms}
         )
 
@@ -252,7 +250,7 @@ if __name__ == '__main__':
 
             if done:
                 steps_left = args.num_steps - info["steps"]
-                completion = np.round(info["steps"] / args.num_steps, 1)
+                completion = np.round(100*info["steps"] / args.num_steps, 2)
 
                 logger.record_tabular("% completion", completion)
                 logger.record_tabular("steps", info["steps"])
