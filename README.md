@@ -1,7 +1,12 @@
 # Distributional DQN
-Implementation of 'A Distributional Perspective on Reinforcement Learning' based on OpenAi DQN baseline
+Implementation of 'A Distributional Perspective on Reinforcement Learning' and
+'Distributional Reinforcement Learning with Quantile Regression'
+based on OpenAi DQN baseline.
 
-![](dist-dqn.gif)
+#### C51:
+![c51](dist-dqn.gif)
+#### Quantile Regression: (see branch quantile)
+![quantile regression](quantile-dqn.gif)
 
 ### Installation
 Install the OpenAi fork https://github.com/Silvicek/baselines (parent changes a lot, compatibility isn't guaranteed)
