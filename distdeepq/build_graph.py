@@ -247,25 +247,8 @@ def build_train(make_obs_ph, quant_func, num_actions, optimizer, grad_norm_clipp
         batch_dim = tf.shape(rew_t_ph)[0]
         quant_target = tf.identity(rew_t_ph[:, tf.newaxis] + gamma * quant_tp1_star, name='quant_target')
 
-        # increase dimensions (?, n, n)
-        big_quant_target = tf.transpose(tf.reshape(tf.tile(quant_target, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
-                                        name='big_quant_target'), perm=[0, 2, 1])
-        # big_quant_target[0] =
-        #  [[Tth1 Tth1 ... Tth1]
-        #   [Tth2 Tth2 ... Tth2]
-        #   [...               ]
-        #   [Tthn Tthn ... Tthn]]
-
-        big_quant_t_selected = tf.reshape(tf.tile(quant_t_selected, [1, nb_atoms]), [batch_dim, nb_atoms, nb_atoms],
-                                          name='big_quant_t_selected')
-        # big_quant_t_selected[0] =
-        #  [[th1 th2 ... thn]
-        #   [th1 th2 ... thn]
-        #   [...            ]
-        #   [th1 th2 ... thn]]
-
         # build loss
-        td_error = tf.stop_gradient(big_quant_target) - big_quant_t_selected
+        td_error = tf.stop_gradient(quant_target[:, None, :]) - quant_t_selected[:, :, None]
         # td_error[0]=
         #  [[Tth1-th1 Tth1-th2 ... Tth1-thn]
         #   [Tth2-th1 Tth2-th2 ... Tth2-thn]
